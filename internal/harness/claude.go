@@ -23,6 +23,9 @@ func (c *Claude) Transform(skill Skill) ([]File, error) {
 	return passthroughTransform(skill, c.Name())
 }
 
+// NeedsTransform returns false — claude reads SKILL.md natively so a symlink suffices.
+func (c *Claude) NeedsTransform() bool { return false }
+
 func (c *Claude) Detect() bool {
 	home, err := os.UserHomeDir()
 	if err != nil {

@@ -23,6 +23,9 @@ func (o *OpenCode) Transform(skill Skill) ([]File, error) {
 	return passthroughTransform(skill, o.Name())
 }
 
+// NeedsTransform returns false — opencode reads SKILL.md natively so a symlink suffices.
+func (o *OpenCode) NeedsTransform() bool { return false }
+
 func (o *OpenCode) Detect() bool {
 	dir, err := os.UserConfigDir()
 	if err != nil {

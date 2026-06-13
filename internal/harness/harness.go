@@ -19,7 +19,11 @@ type Adapter interface {
 	Name() string
 	GlobalSkillsDir() string
 	ProjectSkillsDir(root string) string
+	// Transform converts skill files to the harness's native format.
 	Transform(skill Skill) ([]File, error)
+	// NeedsTransform reports whether this harness requires content transformation.
+	// When false, lore can use a symlink instead of copying for project-scope installs.
+	NeedsTransform() bool
 	Detect() bool
 }
 
@@ -63,7 +67,8 @@ func Names() []string {
 	return names
 }
 
-// passthroughTransform is the default transform for harnesses that use SKILL.md natively.
+// passthroughTransform is the default transform for SKILL.md-native harnesses.
+// Content is passed through as-is (including any frontmatter).
 func passthroughTransform(skill Skill, harnessName string) ([]File, error) {
 	content, ok := skill.Files["SKILL.md"]
 	if !ok {

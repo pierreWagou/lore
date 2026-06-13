@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -74,5 +75,60 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("writing lore.toml: %w", err)
 	}
 	fmt.Printf("created %s\n", path)
+
+	// For project-scope init, update .gitignore with harness dirs.
+	if !initGlobal && len(m.Targets) > 0 {
+		cwd, _ := os.Getwd()
+		gitignorePath := filepath.Join(cwd, ".gitignore")
+		if err := updateGitignore(gitignorePath, m.Targets); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
+		} else {
+			fmt.Printf("updated .gitignore with harness skill dirs\n")
+		}
+	}
+	return nil
+}
+
+// updateGitignore appends harness skill directories to .gitignore if not already present.
+func updateGitignore(path string, targets []string) error {
+	existing, err := os.ReadFile(path)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	harnessIgnores := map[string]string{
+		"opencode": ".opencode/skills/",
+		"claude":   ".claude/skills/",
+		"cursor":   ".cursor/rules/",
+		"codex":    ".codex/skills/",
+	}
+
+	content := string(existing)
+	var toAdd []string
+	for _, target := range targets {
+		if entry, ok := harnessIgnores[target]; ok {
+			if !strings.Contains(content, entry) {
+				toAdd = append(toAdd, entry)
+			}
+		}
+	}
+
+	if len(toAdd) == 0 {
+		return nil
+	}
+
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	if len(content) > 0 && !strings.HasSuffix(content, "\n") {
+		fmt.Fprintln(f)
+	}
+	fmt.Fprintln(f, "\n# lore — generated harness skill dirs (do not edit this block)")
+	for _, entry := range toAdd {
+		fmt.Fprintln(f, entry)
+	}
 	return nil
 }

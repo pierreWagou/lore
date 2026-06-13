@@ -16,12 +16,12 @@ import (
 
 // Options controls installation behaviour.
 type Options struct {
-	Global  bool     // install into global harness dirs
+	Global  bool     // install into global harness dirs (no .ai/skills/ neutral store)
 	Targets []string // explicit harness names (overrides manifest + auto-detect)
 	Root    string   // project root directory (for project-scoped installs)
 }
 
-// Result describes a single installed file placement.
+// Result describes a single installed skill placement.
 type Result struct {
 	Name    string
 	Harness string
@@ -33,6 +33,12 @@ type SkillResult struct {
 	Results     []Result
 	Commit      string
 	ContentHash string
+}
+
+// NeutralSkillsDir returns the .ai/skills directory for the given project root.
+// This is the canonical neutral store per the agentskills.io standard.
+func NeutralSkillsDir(root string) string {
+	return filepath.Join(root, ".ai", "skills")
 }
 
 // DefaultCacheDir returns the default go-git cache directory.
@@ -74,46 +80,131 @@ func Install(dep manifest.Dependency, opts Options, m *manifest.Manifest) (Skill
 		Files: fetchResult.Files,
 	}
 
-	sr := SkillResult{
-		Commit:      fetchResult.Commit,
-		ContentHash: ComputeContentHash(fetchResult.Files),
+	var results []Result
+	if opts.Global {
+		results, err = placeGlobal(skill, adapters)
+	} else {
+		results, err = placeProject(skill, adapters, opts.Root)
+	}
+	if err != nil {
+		return SkillResult{}, err
 	}
 
-	for _, adapter := range adapters {
-		var skillsDir string
-		if opts.Global {
-			skillsDir = adapter.GlobalSkillsDir()
-		} else {
-			skillsDir = adapter.ProjectSkillsDir(opts.Root)
-		}
+	return SkillResult{
+		Results:     results,
+		Commit:      fetchResult.Commit,
+		ContentHash: ComputeContentHash(fetchResult.Files),
+	}, nil
+}
 
+// placeGlobal installs a skill directly into each harness's global skills directory.
+func placeGlobal(skill harness.Skill, adapters []harness.Adapter) ([]Result, error) {
+	var results []Result
+	for _, adapter := range adapters {
+		skillsDir := adapter.GlobalSkillsDir()
 		files, err := adapter.Transform(skill)
 		if err != nil {
-			return SkillResult{}, fmt.Errorf("%s: %w", adapter.Name(), err)
+			return nil, fmt.Errorf("%s: %w", adapter.Name(), err)
 		}
-
-		destDir := filepath.Join(skillsDir, dep.Name)
-		for _, f := range files {
-			destPath := filepath.Join(destDir, f.Path)
-			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-				return SkillResult{}, err
-			}
-			if err := os.WriteFile(destPath, f.Content, 0644); err != nil {
-				return SkillResult{}, err
-			}
+		destDir := filepath.Join(skillsDir, skill.Name)
+		if err := writeFilesToDir(destDir, files); err != nil {
+			return nil, err
 		}
-
-		sr.Results = append(sr.Results, Result{
-			Name:    dep.Name,
+		results = append(results, Result{
+			Name:    skill.Name,
 			Harness: adapter.Name(),
 			Path:    destDir,
 		})
 	}
-
-	return sr, nil
+	return results, nil
 }
 
-// Remove uninstalls a skill from all relevant harness directories.
+// placeProject writes a skill to the neutral .ai/skills/<name>/ store, then
+// creates a symlink (or transformed copy) in each harness's project skills directory.
+func placeProject(skill harness.Skill, adapters []harness.Adapter, root string) ([]Result, error) {
+	neutralDir := filepath.Join(NeutralSkillsDir(root), skill.Name)
+
+	// Write to neutral store (idempotent — safe even if source == neutralDir).
+	if err := writeRawFiles(neutralDir, skill.Files); err != nil {
+		return nil, fmt.Errorf("writing to .ai/skills/%s: %w", skill.Name, err)
+	}
+
+	var results []Result
+	for _, adapter := range adapters {
+		skillsDir := adapter.ProjectSkillsDir(root)
+		destDir := filepath.Join(skillsDir, skill.Name)
+
+		if adapter.NeedsTransform() {
+			// Transform and write a copy — symlink not suitable.
+			files, err := adapter.Transform(skill)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", adapter.Name(), err)
+			}
+			if err := writeFilesToDir(destDir, files); err != nil {
+				return nil, err
+			}
+		} else {
+			// Create a relative symlink: harness/skills/<name> → ../../.ai/skills/<name>
+			if err := os.MkdirAll(skillsDir, 0755); err != nil {
+				return nil, err
+			}
+			if err := createSymlink(destDir, neutralDir); err != nil {
+				return nil, fmt.Errorf("symlinking %s for %s: %w", skill.Name, adapter.Name(), err)
+			}
+		}
+
+		results = append(results, Result{
+			Name:    skill.Name,
+			Harness: adapter.Name(),
+			Path:    destDir,
+		})
+	}
+	return results, nil
+}
+
+// createSymlink creates a relative symlink at target pointing to source.
+// Removes any existing file/symlink at target first.
+func createSymlink(target, source string) error {
+	rel, err := filepath.Rel(filepath.Dir(target), source)
+	if err != nil {
+		return err
+	}
+	_ = os.Remove(target)
+	return os.Symlink(rel, target)
+}
+
+// writeRawFiles writes a map of file contents to dir, creating it if needed.
+func writeRawFiles(dir string, files map[string][]byte) error {
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	for path, content := range files {
+		dest := filepath.Join(dir, path)
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(dest, content, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeFilesToDir writes transformed harness.File slice to dir.
+func writeFilesToDir(dir string, files []harness.File) error {
+	for _, f := range files {
+		dest := filepath.Join(dir, f.Path)
+		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(dest, f.Content, 0644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Remove uninstalls a skill from all relevant harness directories and the neutral store.
 func Remove(name string, opts Options, m *manifest.Manifest) error {
 	adapters, err := resolveAdapters(opts, m)
 	if err != nil {
@@ -130,11 +221,17 @@ func Remove(name string, opts Options, m *manifest.Manifest) error {
 			return err
 		}
 	}
+	// For project-scope installs, also remove from the neutral store.
+	if !opts.Global {
+		neutralDir := filepath.Join(NeutralSkillsDir(opts.Root), name)
+		if err := os.RemoveAll(neutralDir); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Sync installs all dependencies from the manifest, updating the lockfile.
-// It skips skills whose content_hash already matches the lockfile entry.
 func Sync(manifestPath, lockfilePath string, opts Options) error {
 	m, err := manifest.Load(manifestPath)
 	if err != nil {
@@ -145,32 +242,24 @@ func Sync(manifestPath, lockfilePath string, opts Options) error {
 		return err
 	}
 
-	// Manifest targets feed into opts when not overridden by flags.
 	syncOpts := opts
 	if len(syncOpts.Targets) == 0 && len(m.Targets) > 0 {
 		syncOpts.Targets = m.Targets
 	}
 
-	changed := false
 	for _, dep := range m.Dependencies {
 		sr, installErr := Install(dep, syncOpts, m)
 		if installErr != nil {
 			return fmt.Errorf("installing %s: %w", dep.Name, installErr)
 		}
-
 		lockfile.SetEntry(lf, lockfile.NewEntry(dep.Name, dep.Source, sr.Commit, sr.ContentHash))
-		changed = true
-
 		fmt.Printf("installed %s\n", dep.Name)
 		for _, r := range sr.Results {
 			fmt.Printf("  → %s: %s\n", r.Harness, r.Path)
 		}
 	}
 
-	if changed {
-		return lockfile.Save(lockfilePath, lf)
-	}
-	return nil
+	return lockfile.Save(lockfilePath, lf)
 }
 
 // ComputeContentHash returns a deterministic SHA256 over a file map.
@@ -190,15 +279,12 @@ func ComputeContentHash(files map[string][]byte) string {
 }
 
 func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, error) {
-	// 1. Explicit --target flag.
 	if len(opts.Targets) > 0 {
 		return adaptersByNames(opts.Targets)
 	}
-	// 2. Manifest targets.
 	if m != nil && len(m.Targets) > 0 {
 		return adaptersByNames(m.Targets)
 	}
-	// 3. Auto-detect installed harnesses.
 	detected := harness.Detected()
 	if len(detected) == 0 {
 		return nil, fmt.Errorf("no harnesses detected; use --target to specify one (available: %s)", availableNames())

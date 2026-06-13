@@ -23,6 +23,7 @@ exact commit SHAs for reproducibility.`,
 func init() {
 	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(listCmd)
