@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/pierreWagou/lore/internal/installer"
+	"github.com/pierreWagou/lore/internal/manifest"
 )
 
 var syncCmd = &cobra.Command{
@@ -17,13 +19,13 @@ var syncCmd = &cobra.Command{
 }
 
 var (
-	syncGlobal  bool
-	syncTargets string
+	syncGlobal    bool
+	syncHarnesses string
 )
 
 func init() {
 	syncCmd.Flags().BoolVarP(&syncGlobal, "global", "g", false, "sync global skills")
-	syncCmd.Flags().StringVarP(&syncTargets, "target", "t", "", "comma-separated harnesses to sync")
+	syncCmd.Flags().StringVar(&syncHarnesses, "harness", "", "comma-separated harnesses to sync")
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
@@ -35,10 +37,20 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := installer.Options{
-		Global:  syncGlobal,
-		Targets: splitTargets(syncTargets),
-		Root:    projectRoot(),
+		Global:    syncGlobal,
+		Harnesses: splitHarnesses(syncHarnesses),
+		Root:      projectRoot(),
 	}
 
-	return installer.Sync(mPath, lPath, opts)
+	err := installer.Sync(mPath, lPath, opts)
+	if errors.As(err, &installer.ErrNoHarnesses{}) {
+		m, _ := manifest.Load(mPath)
+		harnesses, wizErr := promptSelectHarnesses(mPath, m)
+		if wizErr != nil {
+			return wizErr
+		}
+		opts.Harnesses = harnesses
+		err = installer.Sync(mPath, lPath, opts)
+	}
+	return err
 }

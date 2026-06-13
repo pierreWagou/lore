@@ -15,7 +15,7 @@ func TestLoadMissing(t *testing.T) {
 	m, err := manifest.Load("/tmp/nonexistent/lore.toml")
 	require.NoError(t, err)
 	assert.Empty(t, m.Dependencies)
-	assert.Empty(t, m.Targets)
+	assert.Empty(t, m.Harnesses)
 }
 
 func TestSaveAndLoad(t *testing.T) {
@@ -23,7 +23,7 @@ func TestSaveAndLoad(t *testing.T) {
 	path := filepath.Join(dir, manifest.FileName)
 
 	m := &manifest.Manifest{
-		Targets: []string{"opencode", "claude"},
+		Harnesses: []string{"opencode", "claude"},
 		Dependencies: []manifest.Dependency{
 			{Name: "my-skill", Source: "owner/repo/path", Ref: "main"},
 		},
@@ -32,7 +32,7 @@ func TestSaveAndLoad(t *testing.T) {
 
 	loaded, err := manifest.Load(path)
 	require.NoError(t, err)
-	assert.Equal(t, m.Targets, loaded.Targets)
+	assert.Equal(t, m.Harnesses, loaded.Harnesses)
 	assert.Equal(t, m.Dependencies, loaded.Dependencies)
 }
 
@@ -65,16 +65,16 @@ func TestRemoveDependency(t *testing.T) {
 
 func TestAddTarget(t *testing.T) {
 	m := &manifest.Manifest{}
-	manifest.AddTarget(m, "opencode")
-	manifest.AddTarget(m, "opencode") // duplicate
-	manifest.AddTarget(m, "claude")
-	assert.Equal(t, []string{"opencode", "claude"}, m.Targets)
+	manifest.AddHarness(m, "opencode")
+	manifest.AddHarness(m, "opencode") // duplicate
+	manifest.AddHarness(m, "claude")
+	assert.Equal(t, []string{"opencode", "claude"}, m.Harnesses)
 }
 
 func TestSaveCreatesParentDir(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "nested", "dir", manifest.FileName)
-	m := &manifest.Manifest{Targets: []string{"opencode"}}
+	m := &manifest.Manifest{Harnesses: []string{"opencode"}}
 	require.NoError(t, manifest.Save(path, m))
 	_, err := os.Stat(path)
 	assert.NoError(t, err)

@@ -12,7 +12,7 @@ const FileName = "lore.toml"
 
 // Manifest represents the contents of a lore.toml file.
 type Manifest struct {
-	Targets      []string     `toml:"targets"`
+	Harnesses    []string     `toml:"harnesses"`
 	Dependencies []Dependency `toml:"dependencies"`
 }
 
@@ -80,12 +80,12 @@ func HasDependency(m *Manifest, name string) bool {
 	return false
 }
 
-// AddTarget adds a target harness if not already present.
-func AddTarget(m *Manifest, target string) {
-	for _, t := range m.Targets {
-		if t == target {
+// AddHarness adds a harness to the manifest if not already present.
+func AddHarness(m *Manifest, harness string) {
+	for _, h := range m.Harnesses {
+		if h == harness {
 			return
 		}
 	}
-	m.Targets = append(m.Targets, target)
+	m.Harnesses = append(m.Harnesses, harness)
 }

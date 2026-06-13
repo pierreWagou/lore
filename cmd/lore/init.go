@@ -50,23 +50,23 @@ func runInit(cmd *cobra.Command, args []string) error {
 			names[i] = a.Name()
 		}
 		fmt.Printf("detected harnesses: %s\n", strings.Join(names, ", "))
-		fmt.Print("use these as targets? [Y/n] ")
+		fmt.Print("use these as harnesses? [Y/n] ")
 		reader := bufio.NewReader(os.Stdin)
 		answer, _ := reader.ReadString('\n')
 		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(answer)), "n") {
-			m.Targets = names
+			m.Harnesses = names
 		}
 	}
 
-	if len(m.Targets) == 0 {
+	if len(m.Harnesses) == 0 {
 		fmt.Printf("available harnesses: %s\n", strings.Join(harness.Names(), ", "))
-		fmt.Print("enter targets (comma-separated): ")
+		fmt.Print("enter harnesses (comma-separated): ")
 		reader := bufio.NewReader(os.Stdin)
 		line, _ := reader.ReadString('\n')
 		for _, t := range strings.Split(line, ",") {
 			t = strings.TrimSpace(t)
 			if t != "" {
-				manifest.AddTarget(m, t)
+				manifest.AddHarness(m, t)
 			}
 		}
 	}
@@ -77,10 +77,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("created %s\n", path)
 
 	// For project-scope init, update .gitignore with harness dirs.
-	if !initGlobal && len(m.Targets) > 0 {
+	if !initGlobal && len(m.Harnesses) > 0 {
 		cwd, _ := os.Getwd()
 		gitignorePath := filepath.Join(cwd, ".gitignore")
-		if err := updateGitignore(gitignorePath, m.Targets); err != nil {
+		if err := updateGitignore(gitignorePath, m.Harnesses); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
 		} else {
 			fmt.Printf("updated .gitignore with harness skill dirs\n")
@@ -90,7 +90,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 }
 
 // updateGitignore appends harness skill directories to .gitignore if not already present.
-func updateGitignore(path string, targets []string) error {
+func updateGitignore(path string, harnesses []string) error {
 	existing, err := os.ReadFile(path)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -105,7 +105,7 @@ func updateGitignore(path string, targets []string) error {
 
 	content := string(existing)
 	var toAdd []string
-	for _, target := range targets {
+	for _, target := range harnesses {
 		if entry, ok := harnessIgnores[target]; ok {
 			if !strings.Contains(content, entry) {
 				toAdd = append(toAdd, entry)

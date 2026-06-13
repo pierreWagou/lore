@@ -28,7 +28,7 @@ lore add <source> [flags]
 | Flag | Default | Description |
 |---|---|---|
 | `-g`, `--global` | false | Install globally |
-| `-t`, `--target` | auto-detect | Comma-separated harness names (e.g. `opencode,claude`) |
+| `-t`, `--harness` | auto-detect | Comma-separated harness names (e.g. `opencode,claude`) |
 | `-n`, `--name` | last path segment | Override the skill name |
 | `-r`, `--ref` | `HEAD` | Git ref: branch, tag, or full SHA |
 | `--all` | false | Install all discovered skills without prompting |
@@ -49,7 +49,7 @@ lore add owner/repo --all
 lore add owner/repo/path --ref v1.2.0
 
 # Target specific harness
-lore add owner/repo/path --target opencode
+lore add owner/repo/path --harness opencode
 
 # Global install
 lore add -g owner/repo/path
@@ -82,7 +82,7 @@ lore sync [-g] [-t target]
 | Flag | Description |
 |---|---|
 | `-g`, `--global` | Sync global skills |
-| `-t`, `--target` | Override target harnesses |
+| `-t`, `--harness` | Override target harnesses |
 
 ---
 
@@ -108,12 +108,12 @@ pdf                   anthropics/skills/pdf                         v2.1.0  f7e8
 
 ---
 
-## lore targets
+## lore harnesses
 
 Detect installed harnesses on the current machine.
 
 ```bash
-lore targets
+lore harnesses
 ```
 
 **Output:**

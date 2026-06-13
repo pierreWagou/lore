@@ -3,6 +3,8 @@ package harness
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/pierreWagou/lore/internal/config"
 )
 
 // OpenCode is the harness adapter for the opencode agent.
@@ -11,6 +13,10 @@ type OpenCode struct{}
 func (o *OpenCode) Name() string { return "opencode" }
 
 func (o *OpenCode) GlobalSkillsDir() string {
+	if override := config.SkillsDirOverride(o.Name()); override != "" {
+		return override
+	}
+	// opencode's known location follows the ~/.config/<name>/skills/ convention.
 	dir, _ := os.UserConfigDir()
 	return filepath.Join(dir, "opencode", "skills")
 }

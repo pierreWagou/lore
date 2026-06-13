@@ -36,7 +36,7 @@ Fetch a skill from a git source and install it.
 # Project install — added to lore.toml, source in .ai/skills/
 lore add owner/repo/path/to/skill
 lore add owner/repo/path --ref v1.2.0          # pin to tag
-lore add owner/repo/path --target opencode     # specific harness only
+lore add owner/repo/path --harness opencode     # specific harness only
 
 # Global install — no lore.toml entry, goes directly to harness global dirs
 lore add -g owner/repo/path/to/skill
@@ -86,12 +86,12 @@ lore list
 lore list -g
 ```
 
-### lore targets
+### lore harnesses
 
 Detect which harnesses are installed on the current machine.
 
 ```bash
-lore targets
+lore harnesses
 ```
 
 ### lore auth
@@ -158,8 +158,8 @@ SSH: uses system SSH agent (`SSH_AUTH_SOCK`) then auto-detects `~/.ssh/id_*` key
 
 ```toml
 # Which harnesses to install skills into.
-# Overridden by --target flag. Auto-detected if omitted.
-targets = ["opencode", "claude"]
+# Overridden by --harness flag. Auto-detected if omitted.
+harnesses = ["opencode", "claude"]
 
 [[dependencies]]
 name   = "lore-cli"                              # unique identifier

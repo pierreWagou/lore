@@ -20,9 +20,9 @@ Create with `lore init` or `lore init -g`.
 
 ```toml
 # Which harnesses to install skills into.
-# Used by lore sync when no --target flag is given.
+# Used by lore sync when no --harness flag is given.
 # If omitted, lore auto-detects installed harnesses.
-targets = ["opencode", "claude"]
+harnesses = ["opencode", "claude"]
 
 # One [[dependencies]] block per skill.
 [[dependencies]]
@@ -45,17 +45,17 @@ ref    = "abc123def456789"       # pin to exact commit
 
 ## Fields
 
-### `targets`
+### `harnesses`
 
 Type: `[]string` — optional
 
 List of harness names to install skills into when running `lore sync`.
 
 ```toml
-targets = ["opencode", "claude"]
+harnesses = ["opencode", "claude"]
 ```
 
-If omitted or empty, `lore sync` auto-detects installed harnesses. Overridden by `--target` flag.
+If omitted or empty, `lore sync` auto-detects installed harnesses. Overridden by `--harness` flag.
 
 Available harnesses: `opencode`, `claude` (more coming in future releases).
 

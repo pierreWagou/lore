@@ -101,11 +101,11 @@ lore auth add git.company.com yourtoken
 | Command | Description |
 |---|---|
 | `lore init [-g]` | Create lore.toml (interactive) |
-| `lore add <source> [-g] [--target] [--ref] [--name] [--all]` | Add and install a skill |
+| `lore add <source> [-g] [--harness] [--ref] [--name] [--all]` | Add and install a skill |
 | `lore remove <name> [-g]` | Remove from manifest and uninstall |
-| `lore sync [-g] [--target]` | Install all skills from lore.toml |
+| `lore sync [-g] [--harness]` | Install all skills from lore.toml |
 | `lore list [-g]` | List installed skills |
-| `lore targets` | Detect installed harnesses |
+| `lore harnesses` | Detect installed harnesses |
 | `lore auth add <host> <token>` | Store an auth token |
 | `lore auth list` | List stored tokens |
 | `lore auth remove <host>` | Remove a stored token |
@@ -132,7 +132,7 @@ lore add ./local-skills/my-skill
 ## lore.toml
 
 ```toml
-targets = ["opencode", "claude"]
+harnesses = ["opencode", "claude"]
 
 [[dependencies]]
 name = "setup-second-brain"

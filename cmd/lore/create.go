@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ to harnesses that use copies instead of symlinks (e.g. cursor).`,
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&addTargets, "target", "t", "", "comma-separated harnesses (e.g. opencode,claude)")
+	createCmd.Flags().StringVarP(&addHarnesses, "harness", "", "", "comma-separated harnesses (e.g. opencode,claude)")
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
@@ -68,12 +69,20 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := installer.Options{
-		Global:  false,
-		Targets: splitTargets(addTargets),
-		Root:    root,
+		Global:    false,
+		Harnesses: splitHarnesses(addHarnesses),
+		Root:      root,
 	}
 
 	sr, err := installer.Install(dep, opts, m)
+	if errors.As(err, &installer.ErrNoHarnesses{}) {
+		harnesses, wizErr := promptSelectHarnesses(mPath, m)
+		if wizErr != nil {
+			return wizErr
+		}
+		opts.Harnesses = harnesses
+		sr, err = installer.Install(dep, opts, m)
+	}
 	if err != nil {
 		return fmt.Errorf("install: %w", err)
 	}

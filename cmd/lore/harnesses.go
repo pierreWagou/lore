@@ -8,14 +8,14 @@ import (
 	"github.com/pierreWagou/lore/internal/harness"
 )
 
-var targetsCmd = &cobra.Command{
-	Use:   "targets",
+var harnessesCmd = &cobra.Command{
+	Use:   "harnesses",
 	Short: "Detect installed harnesses",
 	Args:  cobra.NoArgs,
-	RunE:  runTargets,
+	RunE:  runHarnesses,
 }
 
-func runTargets(cmd *cobra.Command, args []string) error {
+func runHarnesses(cmd *cobra.Command, args []string) error {
 	detected := harness.Detected()
 	if len(detected) == 0 {
 		fmt.Println("no harnesses detected.")

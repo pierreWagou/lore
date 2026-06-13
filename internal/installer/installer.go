@@ -14,11 +14,17 @@ import (
 	"github.com/pierreWagou/lore/internal/resolver"
 )
 
+// ErrNoHarnesses is returned when no harness targets can be resolved —
+// no --harness flag, no lore.toml harnesses, and no harnesses auto-detected.
+type ErrNoHarnesses struct{}
+
+func (ErrNoHarnesses) Error() string { return "no harnesses configured or detected" }
+
 // Options controls installation behaviour.
 type Options struct {
-	Global  bool     // install into global harness dirs (no .ai/skills/ neutral store)
-	Targets []string // explicit harness names (overrides manifest + auto-detect)
-	Root    string   // project root directory (for project-scoped installs)
+	Global    bool     // install into global harness dirs (no .ai/skills/ neutral store)
+	Harnesses []string // explicit harness names (overrides manifest + auto-detect)
+	Root      string   // project root directory (for project-scoped installs)
 }
 
 // Result describes a single installed skill placement.
@@ -240,8 +246,8 @@ func Sync(manifestPath, lockfilePath string, opts Options) error {
 	}
 
 	syncOpts := opts
-	if len(syncOpts.Targets) == 0 && len(m.Targets) > 0 {
-		syncOpts.Targets = m.Targets
+	if len(syncOpts.Harnesses) == 0 && len(m.Harnesses) > 0 {
+		syncOpts.Harnesses = m.Harnesses
 	}
 
 	for _, dep := range m.Dependencies {
@@ -276,15 +282,15 @@ func ComputeContentHash(files map[string][]byte) string {
 }
 
 func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, error) {
-	if len(opts.Targets) > 0 {
-		return adaptersByNames(opts.Targets)
+	if len(opts.Harnesses) > 0 {
+		return adaptersByNames(opts.Harnesses)
 	}
-	if m != nil && len(m.Targets) > 0 {
-		return adaptersByNames(m.Targets)
+	if m != nil && len(m.Harnesses) > 0 {
+		return adaptersByNames(m.Harnesses)
 	}
 	detected := harness.Detected()
 	if len(detected) == 0 {
-		return nil, fmt.Errorf("no harnesses detected; use --target to specify one (available: %s)", availableNames())
+		return nil, ErrNoHarnesses{}
 	}
 	return detected, nil
 }

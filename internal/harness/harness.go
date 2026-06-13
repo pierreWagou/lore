@@ -1,6 +1,18 @@
 package harness
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+// defaultGlobalSkillsDir returns the conventional global skills directory for a harness.
+// Convention: ~/.config/<harness-name>/skills/
+// Adapters with a known non-standard location override this in their own GlobalSkillsDir().
+func defaultGlobalSkillsDir(harnessName string) string {
+	dir, _ := os.UserConfigDir()
+	return filepath.Join(dir, harnessName, "skills")
+}
 
 // File is a file to be written to a harness's skill directory.
 type File struct {

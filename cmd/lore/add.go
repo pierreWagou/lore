@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -34,16 +35,16 @@ Source formats:
 }
 
 var (
-	addGlobal  bool
-	addTargets string
-	addName    string
-	addRef     string
-	addAll     bool
+	addGlobal    bool
+	addHarnesses string
+	addName      string
+	addRef       string
+	addAll       bool
 )
 
 func init() {
 	addCmd.Flags().BoolVarP(&addGlobal, "global", "g", false, "install globally")
-	addCmd.Flags().StringVarP(&addTargets, "target", "t", "", "comma-separated harnesses (e.g. opencode,claude)")
+	addCmd.Flags().StringVar(&addHarnesses, "harness", "", "comma-separated harnesses (e.g. opencode,claude)")
 	addCmd.Flags().StringVarP(&addName, "name", "n", "", "skill name (defaults to last path segment)")
 	addCmd.Flags().StringVarP(&addRef, "ref", "r", "", "git ref: branch, tag, or SHA (default: HEAD)")
 	addCmd.Flags().BoolVar(&addAll, "all", false, "install all skills found without prompting")
@@ -56,11 +57,11 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	targets := splitTargets(addTargets)
+	harnesses := splitHarnesses(addHarnesses)
 	opts := installer.Options{
-		Global:  addGlobal,
-		Targets: targets,
-		Root:    projectRoot(),
+		Global:    addGlobal,
+		Harnesses: harnesses,
+		Root:      projectRoot(),
 	}
 
 	mPath := manifestPath(addGlobal)
@@ -156,6 +157,14 @@ func installOne(name, source, ref string, opts installer.Options, m *manifest.Ma
 	fmt.Printf("installing %s from %s...\n", name, source)
 
 	sr, err := installer.Install(dep, opts, m)
+	if errors.As(err, &installer.ErrNoHarnesses{}) {
+		targets, wizErr := promptSelectHarnesses(mPath, m)
+		if wizErr != nil {
+			return wizErr
+		}
+		opts.Harnesses = targets
+		sr, err = installer.Install(dep, opts, m)
+	}
 	if err != nil {
 		return fmt.Errorf("install %s: %w", name, err)
 	}
@@ -224,18 +233,18 @@ func inferName(subPath, fallback string) string {
 	return parts[len(parts)-1]
 }
 
-func splitTargets(s string) []string {
+func splitHarnesses(s string) []string {
 	if s == "" {
 		return nil
 	}
-	var targets []string
-	for _, t := range strings.Split(s, ",") {
-		t = strings.TrimSpace(t)
-		if t != "" {
-			targets = append(targets, t)
+	var harnesses []string
+	for _, h := range strings.Split(s, ",") {
+		h = strings.TrimSpace(h)
+		if h != "" {
+			harnesses = append(harnesses, h)
 		}
 	}
-	return targets
+	return harnesses
 }
 
 // Re-export for use in other command files.

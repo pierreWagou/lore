@@ -12,7 +12,7 @@ lore init
 lore detects installed harnesses (opencode, claude) and creates a `lore.toml` in the current directory:
 
 ```toml
-targets = ["opencode", "claude"]
+harnesses = ["opencode", "claude"]
 ```
 
 Use `-g` for a global manifest at `~/.config/lore/lore.toml`:

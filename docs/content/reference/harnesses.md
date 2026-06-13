@@ -37,27 +37,27 @@ A **harness** is an AI agent environment that lore can install skills into. Each
 
 ---
 
-## Specifying targets
+## Specifying harnesses
 
 ### In lore.toml
 
 ```toml
-targets = ["opencode", "claude"]
+harnesses = ["opencode", "claude"]
 ```
 
-### Via --target flag
+### Via --harness flag
 
 ```bash
-lore add owner/repo/path --target opencode
-lore sync --target opencode,claude
+lore add owner/repo/path --harness opencode
+lore sync --harness opencode,claude
 ```
 
 ### Auto-detection
 
-When no targets are specified, lore detects installed harnesses and installs into all of them:
+When no harnesses are specified, lore detects installed harnesses and installs into all of them:
 
 ```bash
-lore targets   # list detected harnesses
+lore harnesses   # list detected harnesses
 ```
 
 ---

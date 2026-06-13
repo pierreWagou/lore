@@ -27,7 +27,7 @@ func init() {
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(syncCmd)
 	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(targetsCmd)
+	rootCmd.AddCommand(harnessesCmd)
 	rootCmd.AddCommand(authCmd)
 }
 

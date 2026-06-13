@@ -62,9 +62,9 @@ func TestInstallLocal(t *testing.T) {
 		Ref:    "",
 	}
 	opts := installer.Options{
-		Global:  false,
-		Targets: []string{"opencode"},
-		Root:    root,
+		Global:    false,
+		Harnesses: []string{"opencode"},
+		Root:      root,
 	}
 
 	sr, err := installer.Install(dep, opts, nil)
@@ -114,9 +114,9 @@ func TestRemoveDeletesSkillDirs(t *testing.T) {
 	}
 
 	opts := installer.Options{
-		Global:  false,
-		Targets: []string{"opencode", "claude"},
-		Root:    root,
+		Global:    false,
+		Harnesses: []string{"opencode", "claude"},
+		Root:      root,
 	}
 
 	require.NoError(t, installer.Remove("my-skill", opts, nil))

@@ -29,6 +29,10 @@ run = "golangci-lint run"
 description = "Remove built binary"
 run = "rm -f lore"
 
+[tasks.dev]
+description = "Build and install lore locally for testing"
+run = "go install ./cmd/lore"
+
 [tasks."docs:dev"]
 description = "Start Hugo docs dev server"
 run = "hugo server -D"

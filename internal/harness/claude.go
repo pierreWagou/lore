@@ -3,6 +3,8 @@ package harness
 import (
 	"os"
 	"path/filepath"
+
+	"github.com/pierreWagou/lore/internal/config"
 )
 
 // Claude is the harness adapter for Claude's agent environment.
@@ -11,6 +13,10 @@ type Claude struct{}
 func (c *Claude) Name() string { return "claude" }
 
 func (c *Claude) GlobalSkillsDir() string {
+	if override := config.SkillsDirOverride(c.Name()); override != "" {
+		return override
+	}
+	// claude's known location is ~/.claude/skills (non-standard convention).
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".claude", "skills")
 }
