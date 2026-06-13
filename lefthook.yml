@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    fmt:
+      glob: "*.go"
+      run: goimports -l {staged_files} | grep . && exit 1 || exit 0
+    vet:
+      run: go vet ./...

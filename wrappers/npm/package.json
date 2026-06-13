@@ -1,0 +1,24 @@
+{
+  "name": "lore-agent",
+  "version": "0.1.0",
+  "description": "Agent skills package manager — thin npm wrapper for the lore binary",
+  "keywords": ["ai", "agents", "skills", "llm", "opencode", "claude"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pierreWagou/lore"
+  },
+  "bin": {
+    "lore": "./bin/lore.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "files": [
+    "bin/lore.js",
+    "install.js"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

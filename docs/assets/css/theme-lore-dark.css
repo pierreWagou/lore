@@ -1,0 +1,40 @@
+/* lore-dark: Catppuccin Mocha */
+:root[data-r-theme="lore-dark"],
+:root[data-r-color-scheme="dark"] {
+  --MAIN-BG-color:               #1e1e2e;
+  --MAIN-BG-color-2:             #181825;
+  --MAIN-TEXT-color:             #cdd6f4;
+  --MAIN-LINK-color:             #cba6f7;
+  --MAIN-LINK-HOVER-color:       #b4befe;
+  --MAIN-ANCHOR-color:           #cba6f7;
+
+  --MENU-HEADER-BG-color:        #181825;
+  --MENU-HEADER-BORDER-color:    #313244;
+  --MENU-HEADER-TEXT-color:      #cba6f7;
+  --MENU-BG-color:               #1e1e2e;
+  --MENU-BG-color-2:             #181825;
+  --MENU-TEXT-color:             #cdd6f4;
+  --MENU-SEARCH-BG-color:        #313244;
+  --MENU-SEARCH-BOX-color:       #45475a;
+  --MENU-SEARCH-BOX-ICONS-color: #6c7086;
+
+  --HEADER-BG-color:             #181825;
+  --HEADER-BORDER-color:         #313244;
+  --HEADER-TEXT-color:           #cdd6f4;
+
+  --BOX-CAPTION-color:           #cba6f7;
+  --BOX-BG-color:                #313244;
+  --BOX-TEXT-color:              #cdd6f4;
+
+  --CODE-BG-color:               #181825;
+  --CODE-BLOCK-BG-color:         #181825;
+  --CODE-BLOCK-BORDER-color:     #313244;
+  --CODE-BLOCK-color:            #cdd6f4;
+  --CODE-color:                  #f38ba8;
+
+  --TAG-BG-color:                #313244;
+  --TAG-TEXT-color:              #cba6f7;
+
+  --SCROLLBAR-BG-color:          #313244;
+  --SCROLLBAR-color:             #6c7086;
+}

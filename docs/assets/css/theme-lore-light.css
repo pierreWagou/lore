@@ -1,0 +1,40 @@
+/* lore-light: Catppuccin Latte */
+:root[data-r-theme="lore-light"],
+:root[data-r-color-scheme="light"] {
+  --MAIN-BG-color:               #eff1f5;
+  --MAIN-BG-color-2:             #e6e9ef;
+  --MAIN-TEXT-color:             #4c4f69;
+  --MAIN-LINK-color:             #8839ef;
+  --MAIN-LINK-HOVER-color:       #7287fd;
+  --MAIN-ANCHOR-color:           #8839ef;
+
+  --MENU-HEADER-BG-color:        #e6e9ef;
+  --MENU-HEADER-BORDER-color:    #ccd0da;
+  --MENU-HEADER-TEXT-color:      #8839ef;
+  --MENU-BG-color:               #eff1f5;
+  --MENU-BG-color-2:             #e6e9ef;
+  --MENU-TEXT-color:             #4c4f69;
+  --MENU-SEARCH-BG-color:        #dce0e8;
+  --MENU-SEARCH-BOX-color:       #ccd0da;
+  --MENU-SEARCH-BOX-ICONS-color: #9ca0b0;
+
+  --HEADER-BG-color:             #e6e9ef;
+  --HEADER-BORDER-color:         #ccd0da;
+  --HEADER-TEXT-color:           #4c4f69;
+
+  --BOX-CAPTION-color:           #8839ef;
+  --BOX-BG-color:                #dce0e8;
+  --BOX-TEXT-color:              #4c4f69;
+
+  --CODE-BG-color:               #e6e9ef;
+  --CODE-BLOCK-BG-color:         #e6e9ef;
+  --CODE-BLOCK-BORDER-color:     #ccd0da;
+  --CODE-BLOCK-color:            #4c4f69;
+  --CODE-color:                  #d20f39;
+
+  --TAG-BG-color:                #dce0e8;
+  --TAG-TEXT-color:              #8839ef;
+
+  --SCROLLBAR-BG-color:          #dce0e8;
+  --SCROLLBAR-color:             #9ca0b0;
+}

@@ -1,0 +1,43 @@
+[tools]
+go                                     = "1.26"
+"go:golang.org/x/tools/cmd/goimports" = "latest"
+lefthook                               = "latest"
+golangci-lint                          = "latest"
+hugo                                   = "latest"
+
+[tasks.build]
+description = "Build the lore binary"
+run = "go build -o lore ./cmd/lore"
+
+[tasks.test]
+description = "Run tests"
+run = "go test ./..."
+
+[tasks.fmt]
+description = "Format Go code with goimports"
+run = "goimports -w ."
+
+[tasks.vet]
+description = "Run go vet"
+run = "go vet ./..."
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = "golangci-lint run"
+
+[tasks.clean]
+description = "Remove built binary"
+run = "rm -f lore"
+
+[tasks."docs:dev"]
+description = "Start Hugo docs dev server"
+run = "hugo server -D"
+dir = "docs"
+
+[tasks."docs:build"]
+description = "Build Hugo docs site"
+run = "hugo --minify"
+dir = "docs"
+
+[hooks]
+postinstall = "lefthook install"

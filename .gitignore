@@ -1,0 +1,21 @@
+# Binary
+/lore
+/lore.exe
+dist/
+
+# macOS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# mise local overrides
+.mise.local.toml
+
+# Hugo build output and module cache
+docs/public/
+docs/resources/
+docs/themes/

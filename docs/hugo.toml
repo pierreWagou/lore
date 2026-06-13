@@ -1,0 +1,17 @@
+baseURL = "https://pierreWagou.github.io/lore/"
+locale  = "en-US"
+title   = "lore"
+
+[params]
+  themeVariant = ["lore-dark", "lore-light"]
+  disableLandingPageButton = true
+
+[markup.highlight]
+  noClasses = false
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[module]
+[[module.imports]]
+  path = "github.com/McShelby/hugo-theme-relearn"

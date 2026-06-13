@@ -1,0 +1,33 @@
+package harness
+
+import (
+	"os"
+	"path/filepath"
+)
+
+// OpenCode is the harness adapter for the opencode agent.
+type OpenCode struct{}
+
+func (o *OpenCode) Name() string { return "opencode" }
+
+func (o *OpenCode) GlobalSkillsDir() string {
+	dir, _ := os.UserConfigDir()
+	return filepath.Join(dir, "opencode", "skills")
+}
+
+func (o *OpenCode) ProjectSkillsDir(root string) string {
+	return filepath.Join(root, ".opencode", "skills")
+}
+
+func (o *OpenCode) Transform(skill Skill) ([]File, error) {
+	return passthroughTransform(skill, o.Name())
+}
+
+func (o *OpenCode) Detect() bool {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(filepath.Join(dir, "opencode"))
+	return err == nil
+}
