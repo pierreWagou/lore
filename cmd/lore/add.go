@@ -91,12 +91,9 @@ func runAdd(cmd *cobra.Command, args []string) error {
 func runAddScan(h resolver.Handle, opts installer.Options, m *manifest.Manifest, lf *lockfile.Lockfile, mPath, lPath string) error {
 	fmt.Printf("scanning %s for skills...\n", h.RepoURL)
 
-	authMethod, err := auth.Resolve(h.RepoURL)
-	if err != nil {
-		return fmt.Errorf("auth: %w", err)
-	}
+	token := auth.ResolveToken(h.RepoURL)
 
-	fetchResult, err := resolver.Fetch(h, authMethod, installer.DefaultCacheDir())
+	fetchResult, err := resolver.Fetch(h, token, installer.DefaultCacheDir())
 	if err != nil {
 		return fmt.Errorf("fetch: %w", err)
 	}

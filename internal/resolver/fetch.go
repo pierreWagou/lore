@@ -19,12 +19,13 @@ type FetchResult struct {
 }
 
 // Fetch resolves and downloads the skill referenced by h.
-// cacheDir is the root directory for cached clones (e.g. ~/.cache/lore/repos).
-func Fetch(h Handle, auth transport.AuthMethod, cacheDir string) (FetchResult, error) {
+// token is used for HTTPS authentication (pass "" for public repos).
+// cacheDir is the root directory for cached archives (e.g. ~/.cache/lore).
+func Fetch(h Handle, token, cacheDir string) (FetchResult, error) {
 	if h.Kind == KindLocal {
 		return fetchLocal(h)
 	}
-	return fetchGit(h, auth, cacheDir)
+	return fetchArchive(h, token, cacheDir)
 }
 
 func fetchLocal(h Handle) (FetchResult, error) {
@@ -44,8 +45,10 @@ func fetchLocal(h Handle) (FetchResult, error) {
 	return result, err
 }
 
-func fetchGit(h Handle, auth transport.AuthMethod, cacheDir string) (FetchResult, error) {
-	repoDir := filepath.Join(cacheDir, h.Host, h.Owner, h.RepoName)
+// --- go-git helpers kept for future bare-server fallback ---
+
+func fetchGoGit(h Handle, auth transport.AuthMethod, cacheDir string) (FetchResult, error) {
+	repoDir := filepath.Join(cacheDir, "repos", h.Host, h.Owner, h.RepoName)
 
 	repo, err := openOrClone(repoDir, h, auth)
 	if err != nil {
@@ -72,7 +75,6 @@ func fetchGit(h Handle, auth transport.AuthMethod, cacheDir string) (FetchResult
 		Commit: hash.String(),
 	}
 
-	// Navigate to the subtree if a subpath is specified.
 	if h.SubPath != "" {
 		subtree, subErr := tree.Tree(h.SubPath)
 		if subErr != nil {
@@ -102,12 +104,10 @@ func openOrClone(repoDir string, h Handle, auth transport.AuthMethod) (*git.Repo
 
 	repo, err := git.PlainOpen(repoDir)
 	if err != nil {
-		// Corrupted cache entry — remove and re-clone.
 		_ = os.RemoveAll(repoDir)
 		return cloneRepo(h.RepoURL, repoDir, auth)
 	}
 
-	// Fetch updates for branch refs so the cache stays current.
 	if !looksLikeSHA(h.Ref) {
 		fetchErr := repo.Fetch(&git.FetchOptions{
 			RemoteName: "origin",
@@ -115,7 +115,6 @@ func openOrClone(repoDir string, h Handle, auth transport.AuthMethod) (*git.Repo
 			Force:      true,
 		})
 		if fetchErr != nil && fetchErr != git.NoErrAlreadyUpToDate {
-			// Non-fatal: work with cached data.
 			_ = fetchErr
 		}
 	}
@@ -135,6 +134,9 @@ func cloneRepo(repoURL, destDir string, auth transport.AuthMethod) (*git.Reposit
 
 func resolveRef(repo *git.Repository, ref string) (plumbing.Hash, error) {
 	if ref == "" || ref == "HEAD" {
+		if remoteHead, err := repo.Reference(plumbing.NewRemoteReferenceName("origin", "HEAD"), true); err == nil {
+			return remoteHead.Hash(), nil
+		}
 		head, err := repo.Head()
 		if err != nil {
 			return plumbing.ZeroHash, err
@@ -150,14 +152,11 @@ func resolveRef(repo *git.Repository, ref string) (plumbing.Hash, error) {
 		return hash, nil
 	}
 
-	// Try as remote tracking branch.
 	if branchRef, err := repo.Reference(plumbing.NewRemoteReferenceName("origin", ref), true); err == nil {
 		return branchRef.Hash(), nil
 	}
 
-	// Try as tag.
 	if tagRef, err := repo.Tag(ref); err == nil {
-		// Resolve annotated tags to their target commit.
 		if tagObj, err := repo.TagObject(tagRef.Hash()); err == nil {
 			return tagObj.Target, nil
 		}
@@ -167,7 +166,6 @@ func resolveRef(repo *git.Repository, ref string) (plumbing.Hash, error) {
 	return plumbing.ZeroHash, fmt.Errorf("ref %q not found as branch, tag, or commit SHA", ref)
 }
 
-// looksLikeSHA returns true if ref appears to be a hex commit hash (7–40 chars).
 func looksLikeSHA(ref string) bool {
 	if len(ref) < 7 || len(ref) > 40 {
 		return false

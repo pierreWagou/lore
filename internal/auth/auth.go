@@ -140,44 +140,54 @@ func resolveSSH() (transport.AuthMethod, error) {
 }
 
 func resolveHTTPS(repoURL string) (transport.AuthMethod, error) {
+	token := resolveHTTPSToken(repoURL)
+	if token == "" {
+		return nil, nil
+	}
+	return httpAuth(token), nil
+}
+
+// ResolveToken returns the raw HTTPS token for repoURL, or "" for public repos
+// or SSH URLs. Uses the same resolution chain as Resolve.
+func ResolveToken(repoURL string) string {
+	if strings.HasPrefix(repoURL, "git@") || strings.HasPrefix(repoURL, "ssh://") {
+		return ""
+	}
+	return resolveHTTPSToken(repoURL)
+}
+
+func resolveHTTPSToken(repoURL string) string {
 	host := extractHost(repoURL)
 
-	// 1. LORE_<HOST>_TOKEN env var (e.g. LORE_GITHUB_TOKEN for github.com)
 	envKey := "LORE_" + strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(host)) + "_TOKEN"
 	if token := os.Getenv(envKey); token != "" {
-		return httpAuth(token), nil
+		return token
 	}
 
-	// 2. GitHub-specific env vars and integrations
 	if host == "github.com" {
 		if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-			return httpAuth(token), nil
+			return token
 		}
 		if token := os.Getenv("GH_TOKEN"); token != "" {
-			return httpAuth(token), nil
+			return token
 		}
-		// 3. gh CLI token
 		if token := ghCliToken(); token != "" {
-			return httpAuth(token), nil
+			return token
 		}
-		// 4. ~/.config/gh/hosts.yml fallback
 		if token := ghHostsToken(); token != "" {
-			return httpAuth(token), nil
+			return token
 		}
 	}
 
-	// 5. Token stored via `lore auth add`
 	creds, err := loadCredentials()
 	if err == nil {
 		for _, h := range creds.Hosts {
 			if h.Host == host {
-				return httpAuth(h.Token), nil
+				return h.Token
 			}
 		}
 	}
-
-	// No auth — assume public repo
-	return nil, nil
+	return ""
 }
 
 func httpAuth(token string) transport.AuthMethod {

@@ -60,12 +60,9 @@ func Install(dep manifest.Dependency, opts Options, m *manifest.Manifest) (Skill
 		return SkillResult{}, err
 	}
 
-	authMethod, err := auth.Resolve(h.RepoURL)
-	if err != nil {
-		return SkillResult{}, fmt.Errorf("auth for %s: %w", dep.Source, err)
-	}
+	token := auth.ResolveToken(h.RepoURL)
 
-	fetchResult, err := resolver.Fetch(h, authMethod, DefaultCacheDir())
+	fetchResult, err := resolver.Fetch(h, token, DefaultCacheDir())
 	if err != nil {
 		return SkillResult{}, fmt.Errorf("fetch %s: %w", dep.Source, err)
 	}
