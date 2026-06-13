@@ -2,16 +2,16 @@ package harness
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
+
+	"github.com/pierreWagou/lore/internal/config"
 )
 
 // defaultGlobalSkillsDir returns the conventional global skills directory for a harness.
-// Convention: ~/.config/<harness-name>/skills/
+// Convention: $XDG_CONFIG_HOME/<harness-name>/skills/ (defaults to ~/.config/<name>/skills/).
 // Adapters with a known non-standard location override this in their own GlobalSkillsDir().
 func defaultGlobalSkillsDir(harnessName string) string {
-	dir, _ := os.UserConfigDir()
-	return filepath.Join(dir, harnessName, "skills")
+	return filepath.Join(config.XDGConfigHome(), harnessName, "skills")
 }
 
 // File is a file to be written to a harness's skill directory.

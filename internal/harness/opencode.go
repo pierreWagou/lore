@@ -16,9 +16,7 @@ func (o *OpenCode) GlobalSkillsDir() string {
 	if override := config.SkillsDirOverride(o.Name()); override != "" {
 		return override
 	}
-	// opencode's known location follows the ~/.config/<name>/skills/ convention.
-	dir, _ := os.UserConfigDir()
-	return filepath.Join(dir, "opencode", "skills")
+	return filepath.Join(config.XDGConfigHome(), "opencode", "skills")
 }
 
 func (o *OpenCode) ProjectSkillsDir(root string) string {
@@ -33,10 +31,6 @@ func (o *OpenCode) Transform(skill Skill) ([]File, error) {
 func (o *OpenCode) NeedsTransform() bool { return false }
 
 func (o *OpenCode) Detect() bool {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		return false
-	}
-	_, err = os.Stat(filepath.Join(dir, "opencode"))
+	_, err := os.Stat(filepath.Join(config.XDGConfigHome(), "opencode"))
 	return err == nil
 }

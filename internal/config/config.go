@@ -73,3 +73,15 @@ func expandHome(path string) string {
 	}
 	return filepath.Join(home, path[2:])
 }
+
+// XDGConfigHome returns the XDG config home directory.
+// Respects $XDG_CONFIG_HOME; falls back to ~/.config on all platforms.
+// Unlike os.UserConfigDir(), this returns ~/.config on macOS rather than
+// ~/Library/Application Support/, which is what most developer tools expect.
+func XDGConfigHome() string {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return dir
+	}
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config")
+}
