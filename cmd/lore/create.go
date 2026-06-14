@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -23,10 +22,6 @@ Edit .ai/skills/<name>/SKILL.md, then run lore sync to propagate changes
 to harnesses that use copies instead of symlinks (e.g. cursor).`,
 	Args: cobra.ExactArgs(1),
 	RunE: runCreate,
-}
-
-func init() {
-	createCmd.Flags().StringVarP(&addHarnesses, "harness", "", "", "comma-separated harnesses (e.g. opencode,claude)")
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
@@ -68,21 +63,18 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		Ref:    "",
 	}
 
+	// Install using harnesses already configured in lore.toml (opts.Harnesses nil → manifest).
 	opts := installer.Options{
-		Global:    false,
-		Harnesses: splitHarnesses(addHarnesses),
-		Root:      root,
+		Global: false,
+		Root:   root,
 	}
 
-	sr, err := installer.Install(dep, opts, m)
-	if errors.As(err, &installer.ErrNoHarnesses{}) {
-		harnesses, wizErr := promptSelectHarnesses(mPath, m)
-		if wizErr != nil {
-			return wizErr
-		}
-		opts.Harnesses = harnesses
-		sr, err = installer.Install(dep, opts, m)
-	}
+	var sr installer.SkillResult
+	err = withHarnessRetry(&opts, m, mPath, func() error {
+		var installErr error
+		sr, installErr = installer.Install(dep, opts, m)
+		return installErr
+	})
 	if err != nil {
 		return fmt.Errorf("install: %w", err)
 	}

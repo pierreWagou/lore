@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -156,15 +155,12 @@ func installOne(name, source, ref string, opts installer.Options, m *manifest.Ma
 
 	fmt.Printf("installing %s from %s...\n", name, source)
 
-	sr, err := installer.Install(dep, opts, m)
-	if errors.As(err, &installer.ErrNoHarnesses{}) {
-		targets, wizErr := promptSelectHarnesses(mPath, m)
-		if wizErr != nil {
-			return wizErr
-		}
-		opts.Harnesses = targets
-		sr, err = installer.Install(dep, opts, m)
-	}
+	var sr installer.SkillResult
+	err := withHarnessRetry(&opts, m, mPath, func() error {
+		var installErr error
+		sr, installErr = installer.Install(dep, opts, m)
+		return installErr
+	})
 	if err != nil {
 		return fmt.Errorf("install %s: %w", name, err)
 	}
@@ -217,7 +213,7 @@ func promptSelectSkills(candidates []candidate) ([]candidate, error) {
 func buildSource(h resolver.Handle, subPath string) string {
 	switch h.Kind {
 	case resolver.KindSSH:
-		return fmt.Sprintf("%s/%s", h.RepoURL[:len(h.RepoURL)-4], subPath) // strip .git, add path
+		return fmt.Sprintf("%s/%s", strings.TrimSuffix(h.RepoURL, ".git"), subPath)
 	case resolver.KindHTTPS:
 		return fmt.Sprintf("%s/%s", h.RepoURL, subPath)
 	default:

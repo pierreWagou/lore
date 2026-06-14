@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/pierreWagou/lore/internal/auth"
 	"github.com/pierreWagou/lore/internal/harness"
@@ -41,9 +42,8 @@ type SkillResult struct {
 	ContentHash string
 }
 
-// NeutralSkillsDir returns the .ai/skills directory for the given project root.
-// This is the canonical neutral store per the agentskills.io standard.
-func NeutralSkillsDir(root string) string {
+// neutralSkillsDir returns the .ai/skills directory for the given project root.
+func neutralSkillsDir(root string) string {
 	return filepath.Join(root, ".ai", "skills")
 }
 
@@ -125,7 +125,7 @@ func placeGlobal(skill harness.Skill, adapters []harness.Adapter) ([]Result, err
 // placeProject writes a skill to the neutral .ai/skills/<name>/ store, then
 // creates a symlink (or transformed copy) in each harness's project skills directory.
 func placeProject(skill harness.Skill, adapters []harness.Adapter, root string) ([]Result, error) {
-	neutralDir := filepath.Join(NeutralSkillsDir(root), skill.Name)
+	neutralDir := filepath.Join(neutralSkillsDir(root), skill.Name)
 
 	// Write to neutral store (idempotent — safe even if source == neutralDir).
 	if err := writeRawFiles(neutralDir, skill.Files); err != nil {
@@ -226,7 +226,7 @@ func Remove(name string, opts Options, m *manifest.Manifest) error {
 	}
 	// For project-scope installs, also remove from the neutral store.
 	if !opts.Global {
-		neutralDir := filepath.Join(NeutralSkillsDir(opts.Root), name)
+		neutralDir := filepath.Join(neutralSkillsDir(opts.Root), name)
 		if err := os.RemoveAll(neutralDir); err != nil {
 			return err
 		}
@@ -300,21 +300,9 @@ func adaptersByNames(names []string) ([]harness.Adapter, error) {
 	for _, name := range names {
 		a := harness.Get(name)
 		if a == nil {
-			return nil, fmt.Errorf("unknown harness %q (available: %s)", name, availableNames())
+			return nil, fmt.Errorf("unknown harness %q (available: %s)", name, strings.Join(harness.Names(), ", "))
 		}
 		adapters = append(adapters, a)
 	}
 	return adapters, nil
-}
-
-func availableNames() string {
-	names := harness.Names()
-	result := ""
-	for i, n := range names {
-		if i > 0 {
-			result += ", "
-		}
-		result += n
-	}
-	return result
 }

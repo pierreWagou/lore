@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -128,7 +129,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			// Team harness dirs are NOT excluded — they are the team's committed source.
 			entries := append(
 				[]string{".ai/skills/", "lore.lock"},
-				harnessIgnoreEntries(m.Harnesses)...,
+				harnessIgnoreEntries(root, m.Harnesses)...,
 			)
 			if err := updateGitExclude(root, entries); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: could not update .git/info/exclude: %v\n", err)
@@ -137,7 +138,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 			}
 		case "keeper":
 			// Exclude generated harness dirs in .gitignore. .ai/skills/ is committed.
-			if err := updateGitignore(filepath.Join(root, ".gitignore"), m.Harnesses); err != nil {
+			if err := updateGitignore(root, m.Harnesses); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
 			} else {
 				fmt.Println("updated .gitignore with harness skill dirs")
@@ -174,66 +175,31 @@ func adapterNames(adapters []harness.Adapter) []string {
 
 // contains reports whether slice contains s.
 func contains(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
-// harnessIgnoreEntries returns gitignore entries for the given harness names.
-func harnessIgnoreEntries(harnesses []string) []string {
-	known := map[string]string{
-		"opencode": ".opencode/skills/",
-		"claude":   ".claude/skills/",
-		"cursor":   ".cursor/rules/",
-		"codex":    ".codex/skills/",
-	}
+// harnessIgnoreEntries returns project-relative gitignore entries derived from
+// harness adapters. Adding a new adapter automatically updates the entries.
+func harnessIgnoreEntries(root string, harnessNames []string) []string {
 	var entries []string
-	for _, h := range harnesses {
-		if e, ok := known[h]; ok {
-			entries = append(entries, e)
+	for _, name := range harnessNames {
+		a := harness.Get(name)
+		if a == nil {
+			continue
 		}
+		rel, err := filepath.Rel(root, a.ProjectSkillsDir(root))
+		if err != nil {
+			continue
+		}
+		entries = append(entries, filepath.ToSlash(rel)+"/")
 	}
 	return entries
 }
 
-// updateGitignore appends harness skill directories to .gitignore if not already present.
-func updateGitignore(path string, harnesses []string) error {
+// appendEntriesToFile appends new entries to a file (gitignore or git/info/exclude),
+// skipping entries already present. Creates the file if it doesn't exist.
+func appendEntriesToFile(path, header string, entries []string) error {
 	existing, err := os.ReadFile(path)
-	if err != nil && !os.IsNotExist(err) {
-		return err
-	}
-	content := string(existing)
-	var toAdd []string
-	for _, entry := range harnessIgnoreEntries(harnesses) {
-		if !strings.Contains(content, entry) {
-			toAdd = append(toAdd, entry)
-		}
-	}
-	if len(toAdd) == 0 {
-		return nil
-	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	if len(content) > 0 && !strings.HasSuffix(content, "\n") {
-		fmt.Fprintln(f)
-	}
-	fmt.Fprintln(f, "\n# lore — generated harness skill dirs (do not edit this block)")
-	for _, e := range toAdd {
-		fmt.Fprintln(f, e)
-	}
-	return nil
-}
-
-// updateGitExclude appends entries to .git/info/exclude (local-only, never committed).
-func updateGitExclude(projectRoot string, entries []string) error {
-	excludePath := filepath.Join(projectRoot, ".git", "info", "exclude")
-	existing, err := os.ReadFile(excludePath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
@@ -247,7 +213,7 @@ func updateGitExclude(projectRoot string, entries []string) error {
 	if len(toAdd) == 0 {
 		return nil
 	}
-	f, err := os.OpenFile(excludePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
@@ -255,9 +221,27 @@ func updateGitExclude(projectRoot string, entries []string) error {
 	if len(content) > 0 && !strings.HasSuffix(content, "\n") {
 		fmt.Fprintln(f)
 	}
-	fmt.Fprintln(f, "\n# lore (guest mode) — local-only, not committed")
+	fmt.Fprintln(f, "\n"+header)
 	for _, e := range toAdd {
 		fmt.Fprintln(f, e)
 	}
 	return nil
+}
+
+// updateGitignore appends harness skill directories to .gitignore.
+func updateGitignore(root string, harnessNames []string) error {
+	return appendEntriesToFile(
+		filepath.Join(root, ".gitignore"),
+		"# lore — generated harness skill dirs (do not edit this block)",
+		harnessIgnoreEntries(root, harnessNames),
+	)
+}
+
+// updateGitExclude appends entries to .git/info/exclude (local-only, never committed).
+func updateGitExclude(projectRoot string, entries []string) error {
+	return appendEntriesToFile(
+		filepath.Join(projectRoot, ".git", "info", "exclude"),
+		"# lore (guest mode) — local-only, not committed",
+		entries,
+	)
 }

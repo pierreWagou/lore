@@ -71,4 +71,4 @@ lore harnesses   # list detected harnesses
 | gemini | `SKILL.md` | `~/.gemini/skills/<name>/SKILL.md` |
 | windsurf | `SKILL.md` | `~/.windsurf/skills/<name>/SKILL.md` |
 
-Contributions welcome — see the `HarnessAdapter` interface in `internal/harness/harness.go`.
+Contributions welcome — see the `Adapter` interface in `internal/harness/harness.go`.

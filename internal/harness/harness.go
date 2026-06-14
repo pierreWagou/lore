@@ -44,6 +44,10 @@ var registry = []Adapter{
 	&Claude{},
 }
 
+// Compile-time assertions: ensure all adapters implement the full Adapter interface.
+var _ Adapter = (*OpenCode)(nil)
+var _ Adapter = (*Claude)(nil)
+
 // All returns all registered harness adapters.
 func All() []Adapter {
 	return registry

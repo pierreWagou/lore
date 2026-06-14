@@ -19,10 +19,17 @@ Create with `lore init` or `lore init -g`.
 ## Schema
 
 ```toml
+# keeper: .ai/skills/ committed, harness dirs gitignored
+# guest:  .ai/skills/ ephemeral, personal harness dirs excluded via .git/info/exclude
+mode = "keeper"
+
 # Which harnesses to install skills into.
 # Used by lore sync when no --harness flag is given.
 # If omitted, lore auto-detects installed harnesses.
 harnesses = ["opencode", "claude"]
+
+# guest mode only: harness dirs committed by the team (read-only source for lore import)
+team_harnesses = ["claude"]
 
 # One [[dependencies]] block per skill.
 [[dependencies]]
@@ -44,6 +51,35 @@ ref    = "abc123def456789"       # pin to exact commit
 ---
 
 ## Fields
+
+### `mode`
+
+Type: `string` — optional, default: `"keeper"`
+
+Controls how lore manages file visibility in git.
+
+| Value | Behaviour |
+|---|---|
+| `keeper` | `.ai/skills/` is committed; harness dirs gitignored via `.gitignore` |
+| `guest` | `.ai/skills/` is ephemeral; personal harness dirs excluded via `.git/info/exclude` |
+
+```toml
+mode = "keeper"
+```
+
+---
+
+### `team_harnesses`
+
+Type: `[]string` — optional, guest mode only
+
+Harness directories committed by the team. `lore import` scans these to populate `.ai/skills/`.
+
+```toml
+team_harnesses = ["claude"]
+```
+
+---
 
 ### `harnesses`
 
@@ -69,7 +105,7 @@ Repeatable block, one per skill.
 |---|---|---|---|
 | `name` | string | yes | Unique identifier for the skill |
 | `source` | string | yes | Source handle — see [Source Formats]({{%/* ref "reference/source-formats" */%}}) |
-| `ref` | string | yes | Git ref: branch, tag, or full SHA |
+| `ref` | string | no | Git ref: branch, tag, or full SHA (defaults to `HEAD`) |
 
 {{% notice style="tip" %}}
 Use a full SHA for production installs to guarantee reproducibility:

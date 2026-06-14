@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -11,8 +12,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "lore",
-	Short: "Agent skills package manager",
+	Use:     "lore",
+	Version: Version,
+	Short:   "Agent skills package manager",
 	Long: `lore manages AI agent skills across harnesses (opencode, claude, cursor, codex).
 
 Skills are fetched from git repositories and installed in each harness's
@@ -31,6 +33,18 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(harnessesCmd)
 	rootCmd.AddCommand(authCmd)
+	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(completionCmd)
+}
+
+// mustGetwd returns the current working directory or exits with an error message.
+func mustGetwd() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: cannot determine working directory: %v\n", err)
+		os.Exit(1)
+	}
+	return cwd
 }
 
 // manifestPath returns the path to lore.toml for the current scope.
@@ -38,8 +52,7 @@ func manifestPath(global bool) string {
 	if global {
 		return filepath.Join(installer.DefaultConfigDir(), manifest.FileName)
 	}
-	cwd, _ := os.Getwd()
-	return filepath.Join(cwd, manifest.FileName)
+	return filepath.Join(mustGetwd(), manifest.FileName)
 }
 
 // lockfilePath returns the path to lore.lock for the current scope.
@@ -47,12 +60,10 @@ func lockfilePath(global bool) string {
 	if global {
 		return filepath.Join(installer.DefaultConfigDir(), "lore.lock")
 	}
-	cwd, _ := os.Getwd()
-	return filepath.Join(cwd, "lore.lock")
+	return filepath.Join(mustGetwd(), "lore.lock")
 }
 
-// projectRoot returns the project root for the current scope.
+// projectRoot returns the project root directory.
 func projectRoot() string {
-	cwd, _ := os.Getwd()
-	return cwd
+	return mustGetwd()
 }

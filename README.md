@@ -3,7 +3,7 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
+![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)
 [![Docs](https://img.shields.io/badge/docs-pierreWagou.github.io%2Flore-cba6f7)](https://pierreWagou.github.io/lore/)
 
 </div>
@@ -77,6 +77,9 @@ pip install lore-agent
 # Initialise a lore.toml (detects installed harnesses automatically)
 lore init
 
+# Initialise in guest mode (personal harness dirs excluded from git)
+lore init --mode guest
+
 # Add a skill
 lore add owner/repo/path/to/skill
 
@@ -100,12 +103,17 @@ lore auth add git.company.com yourtoken
 
 | Command | Description |
 |---|---|
-| `lore init [-g]` | Create lore.toml (interactive) |
+| `lore init [--mode guest\|keeper] [-g]` | Create lore.toml (interactive) |
 | `lore add <source> [-g] [--harness] [--ref] [--name] [--all]` | Add and install a skill |
+| `lore create <name>` | Scaffold a new project skill in `.ai/skills/` |
+| `lore import` | Import skills from team harness dirs into `.ai/skills/` |
+| `lore export [name] [--harness] [--all]` | Export `.ai/skills/` to harness dirs |
 | `lore remove <name> [-g]` | Remove from manifest and uninstall |
 | `lore sync [-g] [--harness]` | Install all skills from lore.toml |
 | `lore list [-g]` | List installed skills |
 | `lore harnesses` | Detect installed harnesses |
+| `lore harnesses add <name> [--team]` | Add a harness to lore.toml |
+| `lore harnesses remove <name>` | Remove a harness from lore.toml |
 | `lore auth add <host> <token>` | Store an auth token |
 | `lore auth list` | List stored tokens |
 | `lore auth remove <host>` | Remove a stored token |
@@ -132,6 +140,7 @@ lore add ./local-skills/my-skill
 ## lore.toml
 
 ```toml
+mode     = "keeper"
 harnesses = ["opencode", "claude"]
 
 [[dependencies]]
@@ -151,7 +160,7 @@ lore resolves credentials in this order for each fetch:
 
 | Priority | Method |
 |---|---|
-| 1 | `LORE_GITHUB_TOKEN` env var (host-specific override) |
+| 1 | `LORE_GITHUB_COM_TOKEN` env var (host-specific override) |
 | 2 | `GITHUB_TOKEN` / `GH_TOKEN` env var |
 | 3 | `gh auth token` (gh CLI, if installed) |
 | 4 | `~/.config/gh/hosts.yml` (gh CLI fallback) |

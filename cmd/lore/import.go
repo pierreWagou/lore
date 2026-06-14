@@ -108,9 +108,8 @@ func runImport(cmd *cobra.Command, args []string) error {
 				Ref:    "",
 			}
 			opts := installer.Options{
-				Global:    false,
-				Harnesses: splitHarnesses(""),
-				Root:      root,
+				Global: false,
+				Root:   root,
 			}
 			sr, installErr := installer.Install(dep, opts, m)
 			if installErr != nil {

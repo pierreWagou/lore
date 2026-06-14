@@ -8,11 +8,12 @@ weight: 1
 Create a `lore.toml` manifest interactively. Detects installed harnesses automatically.
 
 ```bash
-lore init [-g]
+lore init [flags]
 ```
 
 | Flag | Description |
 |---|---|
+| `--mode` | Mode: `keeper` (commit skills) or `guest` (exclude from git) |
 | `-g`, `--global` | Initialise global config at `~/.config/lore/lore.toml` |
 
 ---
@@ -28,7 +29,7 @@ lore add <source> [flags]
 | Flag | Default | Description |
 |---|---|---|
 | `-g`, `--global` | false | Install globally |
-| `-t`, `--harness` | auto-detect | Comma-separated harness names (e.g. `opencode,claude`) |
+| `--harness` | auto-detect | Comma-separated harness names (e.g. `opencode,claude`) |
 | `-n`, `--name` | last path segment | Override the skill name |
 | `-r`, `--ref` | `HEAD` | Git ref: branch, tag, or full SHA |
 | `--all` | false | Install all discovered skills without prompting |
@@ -57,6 +58,45 @@ lore add -g owner/repo/path
 
 ---
 
+## lore create
+
+Scaffold a new project skill in `.ai/skills/<name>/SKILL.md`.
+
+```bash
+lore create <name>
+```
+
+Creates `.ai/skills/<name>/SKILL.md` with a frontmatter template, adds a `[[dependencies]]` entry to `lore.toml`, and creates symlinks in configured harness dirs.
+
+---
+
+## lore import
+
+Import skills from team harness directories into `.ai/skills/`. For use in guest mode after cloning a repo that has skills committed in a team harness dir.
+
+```bash
+lore import
+```
+
+Reads `team_harnesses` from `lore.toml` and copies any skills found there into `.ai/skills/`.
+
+---
+
+## lore export
+
+Export skills from `.ai/skills/` to harness directories.
+
+```bash
+lore export [name] [flags]
+```
+
+| Flag | Description |
+|---|---|
+| `--harness` | Target harness (defaults to manifest harnesses) |
+| `--all` | Export all skills |
+
+---
+
 ## lore remove
 
 Remove a skill from the manifest and uninstall from all harness directories.
@@ -76,13 +116,13 @@ lore remove <name> [-g]
 Install all skills declared in `lore.toml`, using `lore.lock` for exact SHAs.
 
 ```bash
-lore sync [-g] [-t target]
+lore sync [-g] [--harness]
 ```
 
 | Flag | Description |
 |---|---|
 | `-g`, `--global` | Sync global skills |
-| `-t`, `--harness` | Override target harnesses |
+| `--harness` | Override target harnesses |
 
 ---
 
@@ -110,18 +150,30 @@ pdf                   anthropics/skills/pdf                         v2.1.0  f7e8
 
 ## lore harnesses
 
-Detect installed harnesses on the current machine.
+Detect installed harnesses on the current machine and show configured harnesses.
 
 ```bash
 lore harnesses
 ```
 
-**Output:**
+### lore harnesses add
 
+Add a harness to `lore.toml`.
+
+```bash
+lore harnesses add <name> [--team]
 ```
-detected harnesses:
-  opencode
-  claude
+
+| Flag | Description |
+|---|---|
+| `--team` | Add as a team harness (`team_harnesses`) instead of personal |
+
+### lore harnesses remove
+
+Remove a harness from `lore.toml`.
+
+```bash
+lore harnesses remove <name>
 ```
 
 ---
@@ -162,4 +214,27 @@ gitlab.com   glp_...ab34
 
 ```bash
 lore auth remove <host>
+```
+
+---
+
+## lore version
+
+Print the lore version.
+
+```bash
+lore version
+```
+
+---
+
+## lore completion
+
+Generate shell completion scripts.
+
+```bash
+lore completion bash
+lore completion zsh
+lore completion fish
+lore completion powershell
 ```

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
@@ -42,15 +41,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 		Root:      projectRoot(),
 	}
 
-	err := installer.Sync(mPath, lPath, opts)
-	if errors.As(err, &installer.ErrNoHarnesses{}) {
-		m, _ := manifest.Load(mPath)
-		harnesses, wizErr := promptSelectHarnesses(mPath, m)
-		if wizErr != nil {
-			return wizErr
-		}
-		opts.Harnesses = harnesses
-		err = installer.Sync(mPath, lPath, opts)
+	m, err := manifest.Load(mPath)
+	if err != nil {
+		return fmt.Errorf("loading lore.toml: %w", err)
 	}
-	return err
+
+	return withHarnessRetry(&opts, m, mPath, func() error {
+		return installer.Sync(mPath, lPath, opts)
+	})
 }

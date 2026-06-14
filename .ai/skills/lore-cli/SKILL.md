@@ -24,8 +24,9 @@ lore is an agent skills package manager. It fetches skills from any git source a
 Create `lore.toml` and update `.gitignore` with harness dirs. Detects installed harnesses automatically.
 
 ```bash
-lore init          # project-scoped (./lore.toml)
-lore init -g       # global (~/.config/lore/lore.toml)
+lore init                          # project-scoped (./lore.toml)
+lore init -g                       # global (~/.config/lore/lore.toml)
+lore init --mode guest             # guest mode (personal harness dirs excluded from git)
 ```
 
 ### lore add
@@ -37,6 +38,7 @@ Fetch a skill from a git source and install it.
 lore add owner/repo/path/to/skill
 lore add owner/repo/path --ref v1.2.0          # pin to tag
 lore add owner/repo/path --harness opencode     # specific harness only
+lore add owner/repo/path --name my-skill        # override skill name
 
 # Global install — no lore.toml entry, goes directly to harness global dirs
 lore add -g owner/repo/path/to/skill
@@ -77,6 +79,26 @@ lore remove my-skill
 lore remove -g my-skill
 ```
 
+### lore import
+
+Import skills from team harness directories into `.ai/skills/`. For use in guest mode after cloning a repo that has skills committed in a team harness dir.
+
+```bash
+lore import
+```
+
+Reads `team_harnesses` from `lore.toml` and copies any skills found there into `.ai/skills/`.
+
+### lore export
+
+Export skills from `.ai/skills/` to harness directories.
+
+```bash
+lore export my-skill               # export one skill
+lore export --all                  # export all skills
+lore export --harness opencode     # target specific harness
+```
+
 ### lore list
 
 Show installed skills with source, ref, and pinned commit.
@@ -92,6 +114,23 @@ Detect which harnesses are installed on the current machine.
 
 ```bash
 lore harnesses
+```
+
+### lore harnesses add
+
+Add a harness to `lore.toml`.
+
+```bash
+lore harnesses add opencode        # personal harness
+lore harnesses add claude --team   # team harness (guest mode)
+```
+
+### lore harnesses remove
+
+Remove a harness from `lore.toml`.
+
+```bash
+lore harnesses remove opencode
 ```
 
 ### lore auth
@@ -157,9 +196,16 @@ SSH: uses system SSH agent (`SSH_AUTH_SOCK`) then auto-detects `~/.ssh/id_*` key
 ## lore.toml reference
 
 ```toml
+# keeper: .ai/skills/ committed, harness dirs gitignored
+# guest:  .ai/skills/ ephemeral, personal harness dirs excluded via .git/info/exclude
+mode = "keeper"
+
 # Which harnesses to install skills into.
 # Overridden by --harness flag. Auto-detected if omitted.
 harnesses = ["opencode", "claude"]
+
+# guest mode only: harness dirs committed by the team (read-only source for lore import)
+team_harnesses = ["claude"]
 
 [[dependencies]]
 name   = "lore-cli"                              # unique identifier

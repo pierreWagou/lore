@@ -40,8 +40,8 @@ Output:
 
 ```
 installing setup-second-brain from alan-eu/alan-skills/skills/setup-second-brain...
-  → opencode: ~/.config/opencode/skills/setup-second-brain
-  → claude:   ~/.claude/skills/setup-second-brain
+  → opencode: .opencode/skills/setup-second-brain
+  → claude:   .claude/skills/setup-second-brain
 ```
 
 ---

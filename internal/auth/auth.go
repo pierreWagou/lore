@@ -13,6 +13,7 @@ import (
 	gogitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 
 	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/pierreWagou/lore/internal/config"
 )
 
 // HostToken is a stored credential for a git host.
@@ -25,18 +26,8 @@ type credentials struct {
 	Hosts []HostToken `toml:"hosts"`
 }
 
-// configDir returns the lore config directory.
-// LORE_CONFIG_DIR overrides the default for testing and custom setups.
-func configDir() string {
-	if override := os.Getenv("LORE_CONFIG_DIR"); override != "" {
-		return override
-	}
-	dir, _ := os.UserConfigDir()
-	return filepath.Join(dir, "lore")
-}
-
 func credentialsPath() string {
-	return filepath.Join(configDir(), "credentials.toml")
+	return filepath.Join(config.LoreConfigDir(), "credentials.toml")
 }
 
 func loadCredentials() (*credentials, error) {

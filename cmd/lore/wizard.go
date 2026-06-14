@@ -2,18 +2,34 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/pierreWagou/lore/internal/harness"
+	"github.com/pierreWagou/lore/internal/installer"
 	"github.com/pierreWagou/lore/internal/manifest"
 )
 
+// withHarnessRetry calls fn. If fn returns ErrNoHarnesses it runs the harness
+// selection wizard, sets opts.Harnesses, and calls fn again.
+func withHarnessRetry(opts *installer.Options, m *manifest.Manifest, mPath string, fn func() error) error {
+	err := fn()
+	if !errors.As(err, &installer.ErrNoHarnesses{}) {
+		return err
+	}
+	harnesses, wizErr := promptSelectHarnesses(mPath, m)
+	if wizErr != nil {
+		return wizErr
+	}
+	opts.Harnesses = harnesses
+	return fn()
+}
+
 // promptSelectHarnesses displays an interactive wizard to select harness targets.
-// It is only called when no --harness flag was given and lore.toml has no harnesses configured.
+// Only called when no harness flag was given and lore.toml has no harnesses configured.
 // If the user chooses to save, the selection is persisted to lore.toml.
-// Returns the selected harness names.
 func promptSelectHarnesses(mPath string, m *manifest.Manifest) ([]string, error) {
 	all := harness.Names()
 	reader := bufio.NewReader(os.Stdin)

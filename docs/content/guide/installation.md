@@ -9,7 +9,7 @@ weight: 1
 go install github.com/pierreWagou/lore@latest
 ```
 
-Requires Go 1.22+. The binary is placed in `$GOPATH/bin` (typically `~/go/bin`).
+Requires Go 1.26+. The binary is placed in `$GOPATH/bin` (typically `~/go/bin`).
 
 ---
 

@@ -10,7 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// httpClient is used for all archive downloads. A timeout prevents hangs on slow/broken servers.
+var httpClient = &http.Client{Timeout: 60 * time.Second}
 
 type platform int
 
@@ -100,7 +104,7 @@ func resolveSHAViaHead(archiveURL, token string) string {
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return ""
 	}
@@ -122,7 +126,7 @@ func downloadAndExtract(archiveURL, token string) (map[string][]byte, string, er
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("fetching archive: %w", err)
 	}

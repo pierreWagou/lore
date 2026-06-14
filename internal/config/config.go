@@ -21,6 +21,12 @@ type Config struct {
 }
 
 // configDir returns the lore config directory, respecting LORE_CONFIG_DIR.
+// LoreConfigDir returns the lore config directory.
+// LORE_CONFIG_DIR overrides the default for testing and custom setups.
+func LoreConfigDir() string {
+	return configDir()
+}
+
 func configDir() string {
 	if override := os.Getenv("LORE_CONFIG_DIR"); override != "" {
 		return override
