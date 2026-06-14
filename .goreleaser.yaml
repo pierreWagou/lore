@@ -1,10 +1,6 @@
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
-commit_author:
-  name: lore-releaser[bot]
-  use_github_app_token: true
-
 builds:
   - main: ./cmd/lore
     binary: lore
@@ -36,6 +32,10 @@ brews:
       owner: pierreWagou
       name: homebrew-tap
       branch: main
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_author:
+      name: lore-releaser[bot]
+      email: lore-releaser[bot]@users.noreply.github.com
     homepage: "https://github.com/pierreWagou/lore"
     description: "Agent skills package manager"
     license: "MIT"
@@ -50,6 +50,10 @@ nix:
       owner: pierreWagou
       name: nur
       branch: main
+      token: "{{ .Env.NUR_TOKEN }}"
+    commit_author:
+      name: lore-releaser[bot]
+      email: lore-releaser[bot]@users.noreply.github.com
     homepage: "https://github.com/pierreWagou/lore"
     description: "Agent skills package manager"
     license: "MIT"
