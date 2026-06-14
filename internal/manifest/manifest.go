@@ -12,6 +12,7 @@ const FileName = "lore.toml"
 
 // Manifest represents the contents of a lore.toml file.
 type Manifest struct {
+	Mode         string       `toml:"mode,omitempty"` // "guest" | "keeper" (auto-detected on init)
 	Harnesses    []string     `toml:"harnesses"`
 	Dependencies []Dependency `toml:"dependencies"`
 }
@@ -89,3 +90,8 @@ func AddHarness(m *Manifest, harness string) {
 	}
 	m.Harnesses = append(m.Harnesses, harness)
 }
+
+// IsGuest reports whether the manifest is in guest mode.
+// In guest mode lore adapts to existing harness dirs; .ai/skills/ is ephemeral (gitignored).
+// In keeper mode (default) .ai/skills/ is the committed source of truth.
+func IsGuest(m *Manifest) bool { return m.Mode == "guest" }

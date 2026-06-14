@@ -19,3 +19,6 @@ dist/
 docs/public/
 docs/resources/
 docs/themes/
+
+# lore — generated harness skill dirs (do not edit this block)
+.opencode/skills/
