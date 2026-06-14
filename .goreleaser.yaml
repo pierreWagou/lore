@@ -1,0 +1,79 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+commit_author:
+  name: lore-releaser[bot]
+  use_github_app_token: true
+
+builds:
+  - main: ./cmd/lore
+    binary: lore
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.Version={{.Version}}
+      - -X main.Commit={{.Commit}}
+      - -X main.Date={{.Date}}
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats: [tar.gz]
+    name_template: "lore-{{.Os}}-{{.Arch}}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+brews:
+  - name: lore
+    repository:
+      owner: pierreWagou
+      name: homebrew-tap
+      branch: main
+    homepage: "https://github.com/pierreWagou/lore"
+    description: "Agent skills package manager"
+    license: "MIT"
+    install: |
+      bin.install "lore"
+      generate_completions_from_executable(bin/"lore", "completion")
+    skip_upload: auto
+
+nix:
+  - name: lore
+    repository:
+      owner: pierreWagou
+      name: nur
+      branch: main
+    homepage: "https://github.com/pierreWagou/lore"
+    description: "Agent skills package manager"
+    license: "MIT"
+    main_program: "lore"
+    skip_upload: auto
+
+changelog:
+  use: github
+  sort: asc
+  abbrev: -1
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: "Documentation"
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^chore:"
+      - "^test:"

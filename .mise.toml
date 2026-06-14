@@ -3,11 +3,12 @@ go                                     = "1.26"
 "go:golang.org/x/tools/cmd/goimports" = "latest"
 lefthook                               = "latest"
 golangci-lint                          = "latest"
+goreleaser                             = "latest"
 hugo                                   = "latest"
 
 [tasks.build]
 description = "Build the lore binary"
-run = "go build -o lore ./cmd/lore"
+run = "go build -ldflags \"-s -w -X main.Version=0.1.0 -X main.Commit=dev -X main.Date=unknown\" -o lore ./cmd/lore"
 
 [tasks.test]
 description = "Run tests"

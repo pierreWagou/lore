@@ -58,11 +58,14 @@ lore/
 ### Install
 
 ```bash
+# Nix
+nix profile install github:pierreWagou/nur#lore
+
+# Homebrew
+brew install pierreWagou/tap/lore
+
 # Go
 go install github.com/pierreWagou/lore@latest
-
-# Homebrew (coming soon)
-brew install pierreWagou/tap/lore
 
 # npm
 npm install -g lore-agent

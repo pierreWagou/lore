@@ -3,13 +3,11 @@ title: Installation
 weight: 1
 ---
 
-## Go (recommended)
+## Nix
 
 ```bash
-go install github.com/pierreWagou/lore@latest
+nix profile install github:pierreWagou/nur#lore
 ```
-
-Requires Go 1.26+. The binary is placed in `$GOPATH/bin` (typically `~/go/bin`).
 
 ---
 
@@ -19,9 +17,15 @@ Requires Go 1.26+. The binary is placed in `$GOPATH/bin` (typically `~/go/bin`).
 brew install pierreWagou/tap/lore
 ```
 
-{{% notice style="info" %}}
-Homebrew tap coming soon. Use `go install` in the meantime.
-{{% /notice %}}
+---
+
+## Go
+
+```bash
+go install github.com/pierreWagou/lore@latest
+```
+
+Requires Go 1.26+. The binary is placed in `$GOPATH/bin` (typically `~/go/bin`).
 
 ---
 
@@ -31,7 +35,7 @@ Homebrew tap coming soon. Use `go install` in the meantime.
 npm install -g lore-agent
 ```
 
-Downloads the platform-specific Go binary on install. Useful when you want lore as a project dev dependency:
+Downloads the platform-specific binary on install. Useful as a project dev dependency:
 
 ```bash
 npm install --save-dev lore-agent
@@ -45,14 +49,14 @@ npm install --save-dev lore-agent
 pip install lore-agent
 ```
 
-Downloads the platform-specific Go binary on first run.
+Downloads the platform-specific binary on first run.
 
 ---
 
 ## Verify
 
 ```bash
-lore --version
+lore version
 ```
 
 ---

@@ -2,19 +2,24 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/spf13/cobra"
 )
 
-// Version is the current lore release version.
-const Version = "0.1.0"
+// Populated at build time via -ldflags.
+var (
+	Version = "dev"
+	Commit  = "none"
+	Date    = "unknown"
+)
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the lore version",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("lore " + Version)
+		fmt.Printf("lore %s %s built with %s at %s\n", Version, Commit, runtime.Version(), Date)
 	},
 }
 
