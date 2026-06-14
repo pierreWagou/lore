@@ -32,11 +32,11 @@ func init() {
 
 func runInit(cmd *cobra.Command, args []string) error {
 	path := manifestPath(initGlobal)
+	reader := bufio.NewReader(os.Stdin)
 
 	if _, err := os.Stat(path); err == nil {
 		fmt.Fprintf(os.Stderr, "lore.toml already exists at %s\n", path)
 		fmt.Fprint(os.Stderr, "overwrite? [y/N] ")
-		reader := bufio.NewReader(os.Stdin)
 		answer, _ := reader.ReadString('\n')
 		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(answer)), "y") {
 			fmt.Println("aborted.")
@@ -61,16 +61,42 @@ func runInit(cmd *cobra.Command, args []string) error {
 	m.Mode = mode
 	fmt.Printf("mode: %s\n", mode)
 
-	// Detect installed harnesses and offer them as defaults.
-	detected := harness.Detected()
-	if len(detected) > 0 {
-		names := make([]string, len(detected))
-		for i, a := range detected {
-			names[i] = a.Name()
+	root := projectRoot()
+
+	// Guest mode: detect team harnesses (existing committed dirs, source only).
+	if mode == "guest" && !initGlobal {
+		teamFound := detectExistingHarnesses(root)
+		if len(teamFound) > 0 {
+			fmt.Printf("\nteam harnesses found (committed source, never modified by lore):\n")
+			for _, name := range teamFound {
+				fmt.Printf("  %s\n", name)
+			}
+			fmt.Print("use these as team_harnesses? [Y/n] ")
+			answer, _ := reader.ReadString('\n')
+			if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(answer)), "n") {
+				for _, name := range teamFound {
+					manifest.AddTeamHarness(m, name)
+				}
+			}
 		}
-		fmt.Printf("detected harnesses: %s\n", strings.Join(names, ", "))
+	}
+
+	// Personal harnesses: where lore installs skills for you.
+	fmt.Println()
+	detected := harness.Detected()
+
+	// In guest mode, exclude already-selected team harnesses from personal suggestions.
+	var suggestions []harness.Adapter
+	for _, a := range detected {
+		if !contains(m.TeamHarnesses, a.Name()) {
+			suggestions = append(suggestions, a)
+		}
+	}
+
+	if len(suggestions) > 0 {
+		names := adapterNames(suggestions)
+		fmt.Printf("personal harnesses (your install targets): %s\n", strings.Join(names, ", "))
 		fmt.Print("use these? [Y/n] ")
-		reader := bufio.NewReader(os.Stdin)
 		answer, _ := reader.ReadString('\n')
 		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(answer)), "n") {
 			m.Harnesses = names
@@ -79,8 +105,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	if len(m.Harnesses) == 0 {
 		fmt.Printf("available harnesses: %s\n", strings.Join(harness.Names(), ", "))
-		fmt.Print("enter harnesses (comma-separated): ")
-		reader := bufio.NewReader(os.Stdin)
+		fmt.Print("enter personal harnesses (comma-separated): ")
 		line, _ := reader.ReadString('\n')
 		for _, h := range strings.Split(line, ",") {
 			h = strings.TrimSpace(h)
@@ -93,24 +118,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if err := manifest.Save(path, m); err != nil {
 		return fmt.Errorf("writing lore.toml: %w", err)
 	}
-	fmt.Printf("created %s\n", path)
+	fmt.Printf("\ncreated %s\n", path)
 
-	// Set up exclusions — scope depends on mode.
+	// Set up exclusions.
 	if !initGlobal {
-		root := projectRoot()
-		harnessEntries := harnessIgnoreEntries(m.Harnesses)
-
 		switch mode {
 		case "guest":
-			// Guest: all lore artifacts are local-only — use .git/info/exclude.
-			entries := append([]string{".ai/skills/"}, harnessEntries...)
+			// Exclude personal harness dirs, .ai/skills/, and lore.lock.
+			// Team harness dirs are NOT excluded — they are the team's committed source.
+			entries := append(
+				[]string{".ai/skills/", "lore.lock"},
+				harnessIgnoreEntries(m.Harnesses)...,
+			)
 			if err := updateGitExclude(root, entries); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: could not update .git/info/exclude: %v\n", err)
 			} else {
 				fmt.Println("updated .git/info/exclude (local-only, not committed)")
 			}
 		case "keeper":
-			// Keeper: harness dirs are generated, gitignore them; .ai/skills/ is committed.
+			// Exclude generated harness dirs in .gitignore. .ai/skills/ is committed.
 			if err := updateGitignore(filepath.Join(root, ".gitignore"), m.Harnesses); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
 			} else {
@@ -121,17 +147,42 @@ func runInit(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// hasExistingHarnessDirs returns true if any harness project skill dir already exists.
-func hasExistingHarnessDirs(root string) bool {
+// detectExistingHarnesses returns names of harnesses whose project skill dir exists.
+func detectExistingHarnesses(root string) []string {
+	var found []string
 	for _, a := range harness.All() {
 		if _, err := os.Stat(a.ProjectSkillsDir(root)); err == nil {
+			found = append(found, a.Name())
+		}
+	}
+	return found
+}
+
+// hasExistingHarnessDirs returns true if any harness project skill dir exists.
+func hasExistingHarnessDirs(root string) bool {
+	return len(detectExistingHarnesses(root)) > 0
+}
+
+// adapterNames extracts names from a slice of adapters.
+func adapterNames(adapters []harness.Adapter) []string {
+	names := make([]string, len(adapters))
+	for i, a := range adapters {
+		names[i] = a.Name()
+	}
+	return names
+}
+
+// contains reports whether slice contains s.
+func contains(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
 			return true
 		}
 	}
 	return false
 }
 
-// harnessIgnoreEntries returns the .gitignore / .git/info/exclude entries for each harness.
+// harnessIgnoreEntries returns gitignore entries for the given harness names.
 func harnessIgnoreEntries(harnesses []string) []string {
 	known := map[string]string{
 		"opencode": ".opencode/skills/",

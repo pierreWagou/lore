@@ -44,10 +44,22 @@ func runImport(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println("scanning harness directories...")
+	fmt.Println("scanning team_harnesses directories...")
+
+	// Use team_harnesses from manifest; fall back to all harness dirs if not configured.
+	var adaptersToScan []harness.Adapter
+	if len(m.TeamHarnesses) > 0 {
+		for _, name := range m.TeamHarnesses {
+			if a := harness.Get(name); a != nil {
+				adaptersToScan = append(adaptersToScan, a)
+			}
+		}
+	} else {
+		adaptersToScan = harness.All()
+	}
 
 	imported := 0
-	for _, adapter := range harness.All() {
+	for _, adapter := range adaptersToScan {
 		skillsDir := adapter.ProjectSkillsDir(root)
 		entries, err := os.ReadDir(skillsDir)
 		if err != nil {

@@ -12,9 +12,10 @@ const FileName = "lore.toml"
 
 // Manifest represents the contents of a lore.toml file.
 type Manifest struct {
-	Mode         string       `toml:"mode,omitempty"` // "guest" | "keeper" (auto-detected on init)
-	Harnesses    []string     `toml:"harnesses"`
-	Dependencies []Dependency `toml:"dependencies"`
+	Mode          string       `toml:"mode,omitempty"`           // "guest" | "keeper"
+	TeamHarnesses []string     `toml:"team_harnesses,omitempty"` // guest mode: source dirs (committed by team, never modified)
+	Harnesses     []string     `toml:"harnesses"`                // personal install targets
+	Dependencies  []Dependency `toml:"dependencies"`
 }
 
 // Dependency is a single skill dependency entry.
@@ -81,7 +82,7 @@ func HasDependency(m *Manifest, name string) bool {
 	return false
 }
 
-// AddHarness adds a harness to the manifest if not already present.
+// AddHarness adds a personal harness to the manifest if not already present.
 func AddHarness(m *Manifest, harness string) {
 	for _, h := range m.Harnesses {
 		if h == harness {
@@ -89,6 +90,16 @@ func AddHarness(m *Manifest, harness string) {
 		}
 	}
 	m.Harnesses = append(m.Harnesses, harness)
+}
+
+// AddTeamHarness adds a team harness to the manifest if not already present.
+func AddTeamHarness(m *Manifest, harness string) {
+	for _, h := range m.TeamHarnesses {
+		if h == harness {
+			return
+		}
+	}
+	m.TeamHarnesses = append(m.TeamHarnesses, harness)
 }
 
 // IsGuest reports whether the manifest is in guest mode.
