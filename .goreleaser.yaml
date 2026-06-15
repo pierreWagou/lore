@@ -56,7 +56,7 @@ nix:
       email: lore-releaser[bot]@users.noreply.github.com
     homepage: "https://github.com/pierreWagou/lore"
     description: "Agent skills package manager"
-    license: "MIT"
+    license: "mit"
     main_program: "lore"
     skip_upload: auto
 

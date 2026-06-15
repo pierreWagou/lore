@@ -27,10 +27,6 @@ jobs:
           client-id: ${{ vars.APP_CLIENT_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-          repositories: |
-            lore
-            homebrew-tap
-            nur
 
       - uses: goreleaser/goreleaser-action@v7
         with:
