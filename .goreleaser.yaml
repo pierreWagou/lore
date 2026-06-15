@@ -26,7 +26,7 @@ archives:
       - goos: windows
         formats: [zip]
 
-brews:
+homebrew_casks:
   - name: lore
     repository:
       owner: pierreWagou
@@ -38,10 +38,9 @@ brews:
       email: lore-releaser[bot]@users.noreply.github.com
     homepage: "https://github.com/pierreWagou/lore"
     description: "Agent skills package manager"
-    license: "MIT"
-    install: |
-      bin.install "lore"
-      generate_completions_from_executable(bin/"lore", "completion")
+    license: MIT
+    url:
+      verified: github.com/pierreWagou/lore
     skip_upload: auto
 
 nix:

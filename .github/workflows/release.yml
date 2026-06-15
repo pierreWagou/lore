@@ -28,6 +28,10 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
+      - uses: cachix/install-nix-action@v30
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
       - uses: goreleaser/goreleaser-action@v7
         with:
           version: "~> v2"
@@ -36,3 +40,51 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           HOMEBREW_TAP_TOKEN: ${{ steps.app-token.outputs.token }}
           NUR_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  publish-npm:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Update version in package.json
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd wrappers/npm
+          npm version "$VERSION" --no-git-tag-version
+
+      - name: Publish to npm
+        run: cd wrappers/npm && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Update version in pyproject.toml
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          cd wrappers/pip
+          sed -i.bak "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+          rm -f pyproject.toml.bak
+
+      - name: Build and publish to PyPI
+        run: |
+          cd wrappers/pip
+          python -m build
+          twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
