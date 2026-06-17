@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/harness"
 	"github.com/pierreWagou/lore/internal/manifest"
 )
@@ -32,7 +33,68 @@ func init() {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	path := manifestPath(initGlobal)
+	if initGlobal {
+		return runInitGlobal()
+	}
+	return runInitProject()
+}
+
+func runInitGlobal() error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+
+	// If a non-empty config already exists, warn.
+	if len(cfg.Profiles) > 0 {
+		fmt.Fprintf(os.Stderr, "lore.toml already has profiles configured.\n")
+		fmt.Fprint(os.Stderr, "overwrite with a new scaffold? [y/N] ")
+		reader := bufio.NewReader(os.Stdin)
+		answer, _ := reader.ReadString('\n')
+		if !strings.HasPrefix(strings.ToLower(strings.TrimSpace(answer)), "y") {
+			fmt.Println("aborted.")
+			return nil
+		}
+	}
+
+	// Build a default profile from detected harnesses.
+	detected := harness.Detected()
+	profileName := "default"
+	newProfile := config.Profile{}
+
+	if len(detected) > 0 {
+		for _, a := range detected {
+			newProfile.Harnesses = append(newProfile.Harnesses, a.Name())
+		}
+		fmt.Printf("detected harnesses: %s\n", strings.Join(newProfile.Harnesses, ", "))
+	} else {
+		fmt.Printf("available harnesses: %s\n", strings.Join(harness.Names(), ", "))
+		fmt.Print("enter harnesses for the default profile (comma-separated): ")
+		reader := bufio.NewReader(os.Stdin)
+		line, _ := reader.ReadString('\n')
+		for _, h := range strings.Split(line, ",") {
+			h = strings.TrimSpace(h)
+			if h != "" {
+				newProfile.Harnesses = append(newProfile.Harnesses, h)
+			}
+		}
+	}
+
+	newCfg := &config.Config{
+		DefaultProfile: profileName,
+		Profiles:       map[string]config.Profile{profileName: newProfile},
+	}
+
+	if err := config.Save(newCfg); err != nil {
+		return fmt.Errorf("writing lore.toml: %w", err)
+	}
+	fmt.Printf("\ncreated global lore.toml with profile %q\n", profileName)
+	fmt.Println("rename the profile and add skills_dir overrides as needed.")
+	return nil
+}
+
+func runInitProject() error {
+	path := manifestPath(false)
 	reader := bufio.NewReader(os.Stdin)
 
 	if _, err := os.Stat(path); err == nil {
@@ -50,7 +112,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	// Resolve mode: explicit flag > auto-detect.
 	mode := initMode
 	if mode == "" {
-		if !initGlobal && hasExistingHarnessDirs(projectRoot()) {
+		if hasExistingHarnessDirs(projectRoot()) {
 			mode = "guest"
 		} else {
 			mode = "keeper"
@@ -65,7 +127,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	root := projectRoot()
 
 	// Guest mode: detect team harnesses (existing committed dirs, source only).
-	if mode == "guest" && !initGlobal {
+	if mode == "guest" {
 		teamFound := detectExistingHarnesses(root)
 		if len(teamFound) > 0 {
 			fmt.Printf("\nteam harnesses found (committed source, never modified by lore):\n")
@@ -122,27 +184,22 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\ncreated %s\n", path)
 
 	// Set up exclusions.
-	if !initGlobal {
-		switch mode {
-		case "guest":
-			// Exclude personal harness dirs, .ai/skills/, and lore.lock.
-			// Team harness dirs are NOT excluded — they are the team's committed source.
-			entries := append(
-				[]string{".ai/skills/", "lore.lock"},
-				harnessIgnoreEntries(root, m.Harnesses)...,
-			)
-			if err := updateGitExclude(root, entries); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not update .git/info/exclude: %v\n", err)
-			} else {
-				fmt.Println("updated .git/info/exclude (local-only, not committed)")
-			}
-		case "keeper":
-			// Exclude generated harness dirs in .gitignore. .ai/skills/ is committed.
-			if err := updateGitignore(root, m.Harnesses); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
-			} else {
-				fmt.Println("updated .gitignore with harness skill dirs")
-			}
+	switch mode {
+	case "guest":
+		entries := append(
+			[]string{".ai/skills/", "lore.lock"},
+			harnessIgnoreEntries(root, m.Harnesses)...,
+		)
+		if err := updateGitExclude(root, entries); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not update .git/info/exclude: %v\n", err)
+		} else {
+			fmt.Println("updated .git/info/exclude (local-only, not committed)")
+		}
+	case "keeper":
+		if err := updateGitignore(root, m.Harnesses); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: could not update .gitignore: %v\n", err)
+		} else {
+			fmt.Println("updated .gitignore with harness skill dirs")
 		}
 	}
 	return nil

@@ -7,7 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/installer"
+	"github.com/pierreWagou/lore/internal/lockfile"
 	"github.com/pierreWagou/lore/internal/manifest"
 )
 
@@ -48,6 +50,8 @@ func mustGetwd() string {
 }
 
 // manifestPath returns the path to lore.toml for the current scope.
+// For global scope this is ~/.config/lore/lore.toml (the merged config+manifest).
+// For project scope this is <cwd>/lore.toml.
 func manifestPath(global bool) string {
 	if global {
 		return filepath.Join(installer.DefaultConfigDir(), manifest.FileName)
@@ -55,15 +59,31 @@ func manifestPath(global bool) string {
 	return filepath.Join(mustGetwd(), manifest.FileName)
 }
 
-// lockfilePath returns the path to lore.lock for the current scope.
+// lockfilePath returns the path to lore.lock for project-scoped installs.
+// For global installs use globalLockfilePath instead.
 func lockfilePath(global bool) string {
 	if global {
-		return filepath.Join(installer.DefaultConfigDir(), "lore.lock")
+		return filepath.Join(installer.DefaultConfigDir(), lockfile.FileName)
 	}
-	return filepath.Join(mustGetwd(), "lore.lock")
+	return filepath.Join(mustGetwd(), lockfile.FileName)
+}
+
+// globalLockfilePath returns the per-profile lockfile path: ~/.config/lore/lore.<profile>.lock.
+func globalLockfilePath(profileName string) string {
+	return filepath.Join(installer.DefaultConfigDir(), lockfile.GlobalFileName(profileName))
 }
 
 // projectRoot returns the project root directory.
 func projectRoot() string {
 	return mustGetwd()
+}
+
+// resolveActiveProfile returns the active profile name for a global command, given an
+// explicit --profile flag value and an already-loaded Config.
+// Priority: explicit flag > config.ActiveProfileNameFromConfig.
+func resolveActiveProfile(flagValue string, cfg *config.Config) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return config.ActiveProfileNameFromConfig(cfg)
 }

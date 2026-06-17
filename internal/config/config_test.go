@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/pierreWagou/lore/internal/config"
+	"github.com/pierreWagou/lore/internal/manifest"
 )
 
 func TestLoadMissing(t *testing.T) {
@@ -29,7 +30,7 @@ skills_dir = "~/.claude/skills"
 [harness.opencode]
 skills_dir = "/custom/path"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	c, err := config.Load()
 	require.NoError(t, err)
@@ -47,7 +48,7 @@ func TestSkillsDirOverridePresent(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "[harness.claude]\nskills_dir = \"/custom/claude\"\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	assert.Equal(t, "/custom/claude", config.SkillsDirOverride("claude"))
 	assert.Equal(t, "", config.SkillsDirOverride("opencode"))
@@ -58,7 +59,7 @@ func TestSkillsDirOverrideTildeExpansion(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "[harness.myharness]\nskills_dir = \"~/.config/myharness/skills\"\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	result := config.SkillsDirOverride("myharness")
 	assert.True(t, filepath.IsAbs(result), "expanded path should be absolute")
@@ -75,7 +76,7 @@ func TestDefaultProfileNamePresent(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "default_profile = \"alan\"\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	assert.Equal(t, "alan", config.DefaultProfileName())
 }
@@ -90,7 +91,7 @@ func TestActiveProfileNameExplicitDefault(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "default_profile = \"alan\"\n\n[profile.alan]\nharnesses = [\"opencode\"]\n\n[profile.other]\nharnesses = [\"claude\"]\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	// explicit default_profile wins even when multiple profiles exist
 	assert.Equal(t, "alan", config.ActiveProfileName())
@@ -101,7 +102,7 @@ func TestActiveProfileNameSingleProfile(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "[profile.solo]\nharnesses = [\"opencode\"]\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	// only one profile defined and no default_profile — auto-select it
 	assert.Equal(t, "solo", config.ActiveProfileName())
@@ -112,7 +113,7 @@ func TestActiveProfileNameMultipleNoDefault(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", dir)
 
 	content := "[profile.alpha]\nharnesses = [\"opencode\"]\n\n[profile.beta]\nharnesses = [\"claude\"]\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	// multiple profiles, no default — cannot auto-select
 	assert.Equal(t, "", config.ActiveProfileName())
@@ -143,7 +144,7 @@ harnesses = ["opencode"]
 [profile.alan.harness.opencode]
 skills_dir = "/custom/alan/skills"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	p, err := config.ResolveProfile("alan")
 	require.NoError(t, err)
@@ -160,11 +161,53 @@ func TestResolveProfileTildeExpansion(t *testing.T) {
 [profile.myprofile.harness.opencode]
 skills_dir = "~/.config/opencode-myprofile/skills"
 `
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.toml"), []byte(content), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
 
 	p, err := config.ResolveProfile("myprofile")
 	require.NoError(t, err)
 	require.NotNil(t, p)
 	// Raw value stored in struct — ExpandHome is applied by the installer when consuming the profile.
 	assert.Equal(t, "~/.config/opencode-myprofile/skills", p.Harness["opencode"].SkillsDir)
+}
+
+func TestSaveAndLoad(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("LORE_CONFIG_DIR", dir)
+
+	cfg := &config.Config{
+		DefaultProfile: "wagou",
+		Profiles: map[string]config.Profile{
+			"wagou": {Harnesses: []string{"opencode"}},
+		},
+	}
+	require.NoError(t, config.Save(cfg))
+
+	loaded, err := config.Load()
+	require.NoError(t, err)
+	assert.Equal(t, "wagou", loaded.DefaultProfile)
+	assert.Equal(t, []string{"opencode"}, loaded.Profiles["wagou"].Harnesses)
+}
+
+func TestAddAndRemoveDependency(t *testing.T) {
+	cfg := &config.Config{
+		Profiles: map[string]config.Profile{
+			"wagou": {},
+		},
+	}
+
+	dep := manifest.Dependency{Name: "standup", Source: "owner/repo/standup", Ref: "main"}
+	config.AddDependency(cfg, "wagou", dep)
+	assert.True(t, config.HasDependency(cfg, "wagou", "standup"))
+	assert.Len(t, cfg.Profiles["wagou"].Dependencies, 1)
+
+	// Replace existing.
+	updated := manifest.Dependency{Name: "standup", Source: "owner/repo/standup", Ref: "v2"}
+	config.AddDependency(cfg, "wagou", updated)
+	assert.Len(t, cfg.Profiles["wagou"].Dependencies, 1)
+	assert.Equal(t, "v2", cfg.Profiles["wagou"].Dependencies[0].Ref)
+
+	// Remove.
+	assert.True(t, config.RemoveDependency(cfg, "wagou", "standup"))
+	assert.False(t, config.HasDependency(cfg, "wagou", "standup"))
+	assert.False(t, config.RemoveDependency(cfg, "wagou", "nonexistent"))
 }

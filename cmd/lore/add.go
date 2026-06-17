@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pierreWagou/lore/internal/auth"
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/harness"
 	"github.com/pierreWagou/lore/internal/installer"
 	"github.com/pierreWagou/lore/internal/lockfile"
@@ -69,20 +70,31 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		Profile:   addProfile,
 	}
 
-	mPath := manifestPath(addGlobal)
-	lPath := lockfilePath(addGlobal)
-
-	m, err := manifest.Load(mPath)
-	if err != nil {
-		return err
-	}
-	lf, err := lockfile.Load(lPath)
-	if err != nil {
-		return err
-	}
-
 	// Scan mode: no explicit subpath — discover all skills in the repo.
 	if h.ScanAll() {
+		if addGlobal {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			profileName := resolveActiveProfile(addProfile, cfg)
+			lPath := globalLockfilePath(profileName)
+			lf, err := lockfile.Load(lPath)
+			if err != nil {
+				return err
+			}
+			return runAddScanGlobal(h, opts, cfg, profileName, lf, lPath)
+		}
+		mPath := manifestPath(false)
+		lPath := lockfilePath(false)
+		m, err := manifest.Load(mPath)
+		if err != nil {
+			return err
+		}
+		lf, err := lockfile.Load(lPath)
+		if err != nil {
+			return err
+		}
 		return runAddScan(h, opts, m, lf, mPath, lPath)
 	}
 
@@ -90,6 +102,31 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	name := addName
 	if name == "" {
 		name = inferName(h.SubPath, source)
+	}
+
+	if addGlobal {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		profileName := resolveActiveProfile(addProfile, cfg)
+		lPath := globalLockfilePath(profileName)
+		lf, err := lockfile.Load(lPath)
+		if err != nil {
+			return err
+		}
+		return installOneGlobal(name, source, h.Ref, opts, cfg, profileName, lf, lPath)
+	}
+
+	mPath := manifestPath(false)
+	lPath := lockfilePath(false)
+	m, err := manifest.Load(mPath)
+	if err != nil {
+		return err
+	}
+	lf, err := lockfile.Load(lPath)
+	if err != nil {
+		return err
 	}
 	return installOne(name, source, h.Ref, opts, m, lf, mPath, lPath)
 }
@@ -179,6 +216,88 @@ func installOne(name, source, ref string, opts installer.Options, m *manifest.Ma
 	lockfile.SetEntry(lf, lockfile.NewEntry(name, source, sr.Commit, sr.ContentHash))
 
 	if err := manifest.Save(mPath, m); err != nil {
+		return err
+	}
+	return lockfile.Save(lPath, lf)
+}
+
+func runAddScanGlobal(h resolver.Handle, opts installer.Options, cfg *config.Config, profileName string, lf *lockfile.Lockfile, lPath string) error {
+	fmt.Printf("scanning %s for skills...\n", h.RepoURL)
+
+	token := auth.ResolveToken(h.RepoURL)
+
+	fetchResult, err := resolver.Fetch(h, token, installer.DefaultCacheDir())
+	if err != nil {
+		return fmt.Errorf("fetch: %w", err)
+	}
+
+	dirs := scanner.Scan(fetchResult.Files)
+	if len(dirs) == 0 {
+		return fmt.Errorf("no skills (SKILL.md files) found in %s", h.RepoURL)
+	}
+
+	var candidates []candidate
+	for _, dir := range dirs {
+		var src string
+		if dir == "" {
+			src = h.Raw
+		} else {
+			src = buildSource(h, dir)
+		}
+		candidates = append(candidates, candidate{name: filepath.Base(dir), source: src})
+	}
+
+	selected := candidates
+	if !addAll && len(candidates) > 1 {
+		selected, err = promptSelectSkills(candidates)
+		if err != nil {
+			return err
+		}
+	}
+
+	if len(selected) == 0 {
+		fmt.Println("no skills selected.")
+		return nil
+	}
+
+	for _, c := range selected {
+		name := addName
+		if name == "" || len(selected) > 1 {
+			name = c.name
+		}
+		if err := installOneGlobal(name, c.source, h.Ref, opts, cfg, profileName, lf, lPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func installOneGlobal(name, source, ref string, opts installer.Options, cfg *config.Config, profileName string, lf *lockfile.Lockfile, lPath string) error {
+	dep := manifest.Dependency{Name: name, Source: source, Ref: ref}
+	if dep.Ref == "" {
+		dep.Ref = "HEAD"
+	}
+
+	fmt.Printf("installing %s from %s...\n", name, source)
+
+	var sr installer.SkillResult
+	err := withHarnessRetryGlobal(&opts, cfg, func() error {
+		var installErr error
+		sr, installErr = installer.Install(dep, opts, nil)
+		return installErr
+	})
+	if err != nil {
+		return fmt.Errorf("install %s: %w", name, err)
+	}
+
+	for _, r := range sr.Results {
+		fmt.Printf("  → %s: %s\n", r.Harness, r.Path)
+	}
+
+	config.AddDependency(cfg, profileName, dep)
+	lockfile.SetEntry(lf, lockfile.NewEntry(name, source, sr.Commit, sr.ContentHash))
+
+	if err := config.Save(cfg); err != nil {
 		return err
 	}
 	return lockfile.Save(lPath, lf)

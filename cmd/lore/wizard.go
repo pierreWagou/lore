@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/harness"
 	"github.com/pierreWagou/lore/internal/installer"
 	"github.com/pierreWagou/lore/internal/manifest"
@@ -25,6 +26,60 @@ func withHarnessRetry(opts *installer.Options, m *manifest.Manifest, mPath strin
 	}
 	opts.Harnesses = harnesses
 	return fn()
+}
+
+// withHarnessRetryGlobal is like withHarnessRetry but for global installs. When no
+// harnesses are configured it runs the wizard and saves the selection to the active
+// profile in the global config (lore.toml) rather than a project manifest.
+func withHarnessRetryGlobal(opts *installer.Options, cfg *config.Config, fn func() error) error {
+	err := fn()
+	if !errors.As(err, &installer.ErrNoHarnesses{}) {
+		return err
+	}
+	harnesses, wizErr := promptSelectHarnessesGlobal()
+	if wizErr != nil {
+		return wizErr
+	}
+	opts.Harnesses = harnesses
+	return fn()
+}
+
+// promptSelectHarnessesGlobal is like promptSelectHarnesses but does not persist to
+// a manifest (the global path caller handles persistence).
+func promptSelectHarnessesGlobal() ([]string, error) {
+	all := harness.Names()
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("\nno harnesses configured or detected.")
+	fmt.Println("\navailable harnesses:")
+	for i, name := range all {
+		fmt.Printf("  [%d] %s\n", i+1, name)
+	}
+	fmt.Print("\nselect harnesses to use (e.g. 1,2 or 'all'): ")
+
+	line, _ := reader.ReadString('\n')
+	line = strings.TrimSpace(line)
+
+	var selected []string
+	if strings.ToLower(line) == "all" {
+		selected = all
+	} else {
+		for _, part := range strings.Split(line, ",") {
+			part = strings.TrimSpace(part)
+			var idx int
+			if _, err := fmt.Sscanf(part, "%d", &idx); err != nil || idx < 1 || idx > len(all) {
+				return nil, fmt.Errorf("invalid selection %q — enter numbers like 1,2 or 'all'", part)
+			}
+			selected = append(selected, all[idx-1])
+		}
+	}
+
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no harnesses selected")
+	}
+
+	fmt.Println()
+	return selected, nil
 }
 
 // promptSelectHarnesses displays an interactive wizard to select harness targets.

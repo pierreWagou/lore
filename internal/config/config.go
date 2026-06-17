@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/pierreWagou/lore/internal/manifest"
 )
 
 // HarnessConfig holds per-harness overrides set by the user.
@@ -22,31 +24,38 @@ type ProfileHarnessConfig struct {
 	SkillsDir string `toml:"skills_dir"`
 }
 
-// Profile is a named set of harness overrides in the lore config.
+// Profile is a named set of harness overrides and skill dependencies in the global lore.toml.
 //
-// Example config.toml:
+// Example lore.toml:
 //
 //	[profile.alan]
 //	harnesses = ["opencode"]
 //
 //	[profile.alan.harness.opencode]
 //	skills_dir = "~/.config/opencode-alan/skills"
+//
+//	[[profile.alan.dependencies]]
+//	name   = "standup"
+//	source = "alan-eu/alan-skills/skills/standup"
+//	ref    = "main"
 type Profile struct {
 	// Harnesses limits which harnesses are active when this profile is used.
-	// If empty, harness resolution falls back to the manifest / auto-detect.
+	// If empty, harness resolution falls back to auto-detect.
 	Harnesses []string `toml:"harnesses,omitempty"`
 	// Harness holds per-harness overrides for this profile.
 	Harness map[string]ProfileHarnessConfig `toml:"harness,omitempty"`
+	// Dependencies lists the skills installed under this profile.
+	Dependencies []manifest.Dependency `toml:"dependencies,omitempty"`
 }
 
-// Config is the lore user configuration (~/.config/lore/config.toml).
+// Config is the global lore configuration (~/.config/lore/lore.toml).
+// Project-scoped lore.toml files use manifest.Manifest instead.
 type Config struct {
 	DefaultProfile string                   `toml:"default_profile"`
 	Harness        map[string]HarnessConfig `toml:"harness"`
 	Profiles       map[string]Profile       `toml:"profile"`
 }
 
-// configDir returns the lore config directory, respecting LORE_CONFIG_DIR.
 // LoreConfigDir returns the lore config directory.
 // LORE_CONFIG_DIR overrides the default for testing and custom setups.
 func LoreConfigDir() string {
@@ -60,12 +69,12 @@ func configDir() string {
 	return filepath.Join(XDGConfigHome(), "lore")
 }
 
-// configPath returns the full path to config.toml.
+// configPath returns the full path to the global lore.toml.
 func configPath() string {
-	return filepath.Join(configDir(), "config.toml")
+	return filepath.Join(configDir(), "lore.toml")
 }
 
-// Load reads the lore config file. Returns an empty Config if the file does not exist.
+// Load reads the global lore.toml. Returns an empty Config if the file does not exist.
 func Load() (*Config, error) {
 	c := &Config{}
 	path := configPath()
@@ -78,7 +87,22 @@ func Load() (*Config, error) {
 	return c, nil
 }
 
-// SkillsDirOverride returns the user-configured global skills directory for harnessName.
+// Save writes the global config back to lore.toml, creating parent directories as needed.
+func Save(c *Config) error {
+	path := configPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return toml.NewEncoder(f).Encode(c)
+}
+
+// SkillsDirOverride returns the user-configured global skills directory for harnessName
+// from the top-level [harness.<name>] section (not profile-specific).
 // Returns "" if no override is set. Expands ~ in paths.
 // Errors reading the config are silently ignored — callers fall back to defaults.
 func SkillsDirOverride(harnessName string) string {
@@ -93,9 +117,8 @@ func SkillsDirOverride(harnessName string) string {
 	return ExpandHome(hc.SkillsDir)
 }
 
-// ResolveProfile returns the named profile from the lore config.
+// ResolveProfile returns the named profile from the config.
 // Returns (nil, nil) when name is "" or the profile does not exist.
-// Errors loading the config are propagated to the caller.
 func ResolveProfile(name string) (*Profile, error) {
 	if name == "" {
 		return nil, nil
@@ -111,7 +134,20 @@ func ResolveProfile(name string) (*Profile, error) {
 	return &p, nil
 }
 
-// DefaultProfileName returns the default_profile value from the lore config.
+// ResolveProfileFromConfig returns the named profile from an already-loaded Config.
+// Returns nil when name is "" or the profile does not exist.
+func ResolveProfileFromConfig(c *Config, name string) *Profile {
+	if name == "" || c.Profiles == nil {
+		return nil
+	}
+	p, ok := c.Profiles[name]
+	if !ok {
+		return nil
+	}
+	return &p
+}
+
+// DefaultProfileName returns the default_profile value from the config.
 // Returns "" if unset or the config cannot be read.
 func DefaultProfileName() string {
 	c, err := Load()
@@ -121,9 +157,9 @@ func DefaultProfileName() string {
 	return c.DefaultProfile
 }
 
-// ActiveProfileName returns the profile name that should be used for a global
-// install when no explicit --profile flag was given. Resolution order:
-//  1. default_profile from config.toml (explicit)
+// ActiveProfileName returns the profile name to use for a global install when no
+// explicit --profile flag was given. Resolution order:
+//  1. default_profile from config (explicit)
 //  2. the sole profile name when exactly one profile is defined (implicit)
 //  3. "" — no active profile
 func ActiveProfileName() string {
@@ -131,6 +167,16 @@ func ActiveProfileName() string {
 	if err != nil {
 		return ""
 	}
+	return activeProfileNameFromConfig(c)
+}
+
+// ActiveProfileNameFromConfig is the same as ActiveProfileName but operates on an
+// already-loaded Config, avoiding a second disk read.
+func ActiveProfileNameFromConfig(c *Config) string {
+	return activeProfileNameFromConfig(c)
+}
+
+func activeProfileNameFromConfig(c *Config) string {
 	if c.DefaultProfile != "" {
 		return c.DefaultProfile
 	}
@@ -140,6 +186,60 @@ func ActiveProfileName() string {
 		}
 	}
 	return ""
+}
+
+// AddDependency adds or replaces a dependency in the named profile.
+// Creates the profile if it does not exist.
+func AddDependency(c *Config, profileName string, dep manifest.Dependency) {
+	if c.Profiles == nil {
+		c.Profiles = make(map[string]Profile)
+	}
+	p := c.Profiles[profileName]
+	for i, d := range p.Dependencies {
+		if d.Name == dep.Name {
+			p.Dependencies[i] = dep
+			c.Profiles[profileName] = p
+			return
+		}
+	}
+	p.Dependencies = append(p.Dependencies, dep)
+	c.Profiles[profileName] = p
+}
+
+// RemoveDependency removes a dependency from the named profile. Returns true if found.
+func RemoveDependency(c *Config, profileName, name string) bool {
+	if c.Profiles == nil {
+		return false
+	}
+	p, ok := c.Profiles[profileName]
+	if !ok {
+		return false
+	}
+	for i, d := range p.Dependencies {
+		if d.Name == name {
+			p.Dependencies = append(p.Dependencies[:i], p.Dependencies[i+1:]...)
+			c.Profiles[profileName] = p
+			return true
+		}
+	}
+	return false
+}
+
+// HasDependency reports whether a dependency with the given name exists in the named profile.
+func HasDependency(c *Config, profileName, name string) bool {
+	if c.Profiles == nil {
+		return false
+	}
+	p, ok := c.Profiles[profileName]
+	if !ok {
+		return false
+	}
+	for _, d := range p.Dependencies {
+		if d.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ExpandHome replaces a leading ~ with the user's home directory.

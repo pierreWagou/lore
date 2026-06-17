@@ -11,6 +11,15 @@ import (
 
 const FileName = "lore.lock"
 
+// GlobalFileName returns the lockfile filename for a named profile: "lore.<profile>.lock".
+// Returns FileName ("lore.lock") when profileName is empty.
+func GlobalFileName(profileName string) string {
+	if profileName == "" {
+		return FileName
+	}
+	return "lore." + profileName + ".lock"
+}
+
 // Lockfile represents the contents of a lore.lock file.
 type Lockfile struct {
 	Entries []Entry `toml:"entry"`

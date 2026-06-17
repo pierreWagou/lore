@@ -294,6 +294,29 @@ func Sync(manifestPath, lockfilePath string, opts Options) error {
 	return lockfile.Save(lockfilePath, lf)
 }
 
+// SyncDeps installs a slice of dependencies (e.g. from a global profile), updating lockfilePath.
+// Unlike Sync, it does not read a manifest file — the caller provides deps directly.
+func SyncDeps(deps []manifest.Dependency, lockfilePath string, opts Options) error {
+	lf, err := lockfile.Load(lockfilePath)
+	if err != nil {
+		return err
+	}
+
+	for _, dep := range deps {
+		sr, installErr := Install(dep, opts, nil)
+		if installErr != nil {
+			return fmt.Errorf("installing %s: %w", dep.Name, installErr)
+		}
+		lockfile.SetEntry(lf, lockfile.NewEntry(dep.Name, dep.Source, sr.Commit, sr.ContentHash))
+		fmt.Printf("installed %s\n", dep.Name)
+		for _, r := range sr.Results {
+			fmt.Printf("  → %s: %s\n", r.Harness, r.Path)
+		}
+	}
+
+	return lockfile.Save(lockfilePath, lf)
+}
+
 // ComputeContentHash returns a deterministic SHA256 over a file map.
 func ComputeContentHash(files map[string][]byte) string {
 	keys := make([]string, 0, len(files))

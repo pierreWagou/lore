@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/installer"
 	"github.com/pierreWagou/lore/internal/lockfile"
 	"github.com/pierreWagou/lore/internal/manifest"
@@ -17,16 +18,62 @@ var removeCmd = &cobra.Command{
 	RunE:  runRemove,
 }
 
-var removeGlobal bool
+var (
+	removeGlobal  bool
+	removeProfile string
+)
 
 func init() {
 	removeCmd.Flags().BoolVarP(&removeGlobal, "global", "g", false, "remove from global install")
+	removeCmd.Flags().StringVar(&removeProfile, "profile", "", "profile to remove from (global only)")
 }
 
 func runRemove(cmd *cobra.Command, args []string) error {
 	name := args[0]
-	mPath := manifestPath(removeGlobal)
-	lPath := lockfilePath(removeGlobal)
+
+	if removeGlobal {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		profileName := resolveActiveProfile(removeProfile, cfg)
+		if profileName == "" {
+			return fmt.Errorf("no profile active — set default_profile in lore.toml or use --profile")
+		}
+		if !config.HasDependency(cfg, profileName, name) {
+			return fmt.Errorf("skill %q not found in profile %q", name, profileName)
+		}
+
+		opts := installer.Options{
+			Global:  true,
+			Profile: profileName,
+		}
+		if err := installer.Remove(name, opts, nil); err != nil {
+			return fmt.Errorf("uninstall %s: %w", name, err)
+		}
+
+		config.RemoveDependency(cfg, profileName, name)
+		if err := config.Save(cfg); err != nil {
+			return err
+		}
+
+		lPath := globalLockfilePath(profileName)
+		lf, err := lockfile.Load(lPath)
+		if err != nil {
+			return err
+		}
+		lockfile.RemoveEntry(lf, name)
+		if err := lockfile.Save(lPath, lf); err != nil {
+			return err
+		}
+
+		fmt.Printf("removed %s from profile %q\n", name, profileName)
+		return nil
+	}
+
+	// Project-scoped remove.
+	mPath := manifestPath(false)
+	lPath := lockfilePath(false)
 
 	m, err := manifest.Load(mPath)
 	if err != nil {
@@ -38,7 +85,7 @@ func runRemove(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := installer.Options{
-		Global: removeGlobal,
+		Global: false,
 		Root:   projectRoot(),
 	}
 

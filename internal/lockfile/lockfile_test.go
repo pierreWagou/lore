@@ -65,3 +65,9 @@ func TestRemoveEntry(t *testing.T) {
 	assert.Equal(t, "b", lf.Entries[0].Name)
 	assert.False(t, lockfile.RemoveEntry(lf, "nonexistent"))
 }
+
+func TestGlobalFileName(t *testing.T) {
+	assert.Equal(t, "lore.lock", lockfile.GlobalFileName(""))
+	assert.Equal(t, "lore.wagou.lock", lockfile.GlobalFileName("wagou"))
+	assert.Equal(t, "lore.alan.lock", lockfile.GlobalFileName("alan"))
+}
