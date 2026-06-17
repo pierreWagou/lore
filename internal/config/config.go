@@ -31,8 +31,7 @@ func configDir() string {
 	if override := os.Getenv("LORE_CONFIG_DIR"); override != "" {
 		return override
 	}
-	dir, _ := os.UserConfigDir()
-	return filepath.Join(dir, "lore")
+	return filepath.Join(XDGConfigHome(), "lore")
 }
 
 // configPath returns the full path to config.toml.

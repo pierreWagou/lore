@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pierreWagou/lore/internal/auth"
+	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/harness"
 	"github.com/pierreWagou/lore/internal/lockfile"
 	"github.com/pierreWagou/lore/internal/manifest"
@@ -55,8 +56,7 @@ func DefaultCacheDir() string {
 
 // DefaultConfigDir returns the default lore config directory.
 func DefaultConfigDir() string {
-	dir, _ := os.UserConfigDir()
-	return filepath.Join(dir, "lore")
+	return config.LoreConfigDir()
 }
 
 // Install fetches and installs a single skill from its manifest dependency.
