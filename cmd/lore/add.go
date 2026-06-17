@@ -39,6 +39,8 @@ var (
 	addName      string
 	addRef       string
 	addAll       bool
+	addSkillsDir string
+	addProfile   string
 )
 
 func init() {
@@ -47,6 +49,8 @@ func init() {
 	addCmd.Flags().StringVarP(&addName, "name", "n", "", "skill name (defaults to last path segment)")
 	addCmd.Flags().StringVarP(&addRef, "ref", "r", "", "git ref: branch, tag, or SHA (default: HEAD)")
 	addCmd.Flags().BoolVar(&addAll, "all", false, "install all skills found without prompting")
+	addCmd.Flags().StringVar(&addSkillsDir, "skills-dir", "", "install into this directory instead of the harness default (global installs only)")
+	addCmd.Flags().StringVar(&addProfile, "profile", "", "use a named profile from ~/.config/lore/config.toml (global installs only)")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -61,6 +65,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 		Global:    addGlobal,
 		Harnesses: harnesses,
 		Root:      projectRoot(),
+		SkillsDir: addSkillsDir,
+		Profile:   addProfile,
 	}
 
 	mPath := manifestPath(addGlobal)

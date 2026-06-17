@@ -27,6 +27,8 @@ type Options struct {
 	Global    bool     // install into global harness dirs (no .ai/skills/ neutral store)
 	Harnesses []string // explicit harness names (overrides manifest + auto-detect)
 	Root      string   // project root directory (for project-scoped installs)
+	SkillsDir string   // one-off override for global skills dir (all harnesses); global installs only
+	Profile   string   // named profile from ~/.config/lore/config.toml; global installs only
 }
 
 // Result describes a single installed skill placement.
@@ -85,7 +87,7 @@ func Install(dep manifest.Dependency, opts Options, m *manifest.Manifest) (Skill
 
 	var results []Result
 	if opts.Global {
-		results, err = placeGlobal(skill, adapters)
+		results, err = placeGlobal(skill, adapters, opts)
 	} else {
 		results, err = placeProject(skill, adapters, opts.Root)
 	}
@@ -101,10 +103,20 @@ func Install(dep manifest.Dependency, opts Options, m *manifest.Manifest) (Skill
 }
 
 // placeGlobal installs a skill directly into each harness's global skills directory.
-func placeGlobal(skill harness.Skill, adapters []harness.Adapter) ([]Result, error) {
+// The target directory is resolved per adapter using opts (SkillsDir flag > profile > adapter default).
+func placeGlobal(skill harness.Skill, adapters []harness.Adapter, opts Options) ([]Result, error) {
+	profileName := opts.Profile
+	if profileName == "" {
+		profileName = config.ActiveProfileName()
+	}
+	profile, err := config.ResolveProfile(profileName)
+	if err != nil {
+		return nil, fmt.Errorf("loading profile %q: %w", profileName, err)
+	}
+
 	var results []Result
 	for _, adapter := range adapters {
-		skillsDir := adapter.GlobalSkillsDir()
+		skillsDir := resolveSkillsDir(adapter, opts, profile)
 		files, err := adapter.Transform(skill)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", adapter.Name(), err)
@@ -120,6 +132,23 @@ func placeGlobal(skill harness.Skill, adapters []harness.Adapter) ([]Result, err
 		})
 	}
 	return results, nil
+}
+
+// resolveSkillsDir returns the skills directory to use for a global install, applying the
+// following priority chain (highest to lowest):
+//  1. opts.SkillsDir (--skills-dir flag)
+//  2. profile harness override (--profile flag → profile.<name>.harness.<harness>.skills_dir)
+//  3. adapter.GlobalSkillsDir() — already applies [harness.<name>].skills_dir from config.toml
+func resolveSkillsDir(adapter harness.Adapter, opts Options, profile *config.Profile) string {
+	if opts.SkillsDir != "" {
+		return config.ExpandHome(opts.SkillsDir)
+	}
+	if profile != nil {
+		if hc, ok := profile.Harness[adapter.Name()]; ok && hc.SkillsDir != "" {
+			return config.ExpandHome(hc.SkillsDir)
+		}
+	}
+	return adapter.GlobalSkillsDir()
 }
 
 // placeProject writes a skill to the neutral .ai/skills/<name>/ store, then
@@ -287,6 +316,21 @@ func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, err
 	}
 	if m != nil && len(m.Harnesses) > 0 {
 		return adaptersByNames(m.Harnesses)
+	}
+	// Fall back to profile harnesses when no explicit list is given.
+	// For global installs, also check the default profile when no --profile flag was passed.
+	profileName := opts.Profile
+	if profileName == "" && opts.Global {
+		profileName = config.ActiveProfileName()
+	}
+	if profileName != "" {
+		profile, err := config.ResolveProfile(profileName)
+		if err != nil {
+			return nil, fmt.Errorf("loading profile %q: %w", profileName, err)
+		}
+		if profile != nil && len(profile.Harnesses) > 0 {
+			return adaptersByNames(profile.Harnesses)
+		}
 	}
 	detected := harness.Detected()
 	if len(detected) == 0 {

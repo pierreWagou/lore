@@ -15,9 +15,35 @@ type HarnessConfig struct {
 	SkillsDir string `toml:"skills_dir"`
 }
 
+// ProfileHarnessConfig holds per-harness overrides within a named profile.
+type ProfileHarnessConfig struct {
+	// SkillsDir overrides the global skills directory for this harness within the profile.
+	// Supports ~ expansion.
+	SkillsDir string `toml:"skills_dir"`
+}
+
+// Profile is a named set of harness overrides in the lore config.
+//
+// Example config.toml:
+//
+//	[profile.alan]
+//	harnesses = ["opencode"]
+//
+//	[profile.alan.harness.opencode]
+//	skills_dir = "~/.config/opencode-alan/skills"
+type Profile struct {
+	// Harnesses limits which harnesses are active when this profile is used.
+	// If empty, harness resolution falls back to the manifest / auto-detect.
+	Harnesses []string `toml:"harnesses,omitempty"`
+	// Harness holds per-harness overrides for this profile.
+	Harness map[string]ProfileHarnessConfig `toml:"harness,omitempty"`
+}
+
 // Config is the lore user configuration (~/.config/lore/config.toml).
 type Config struct {
-	Harness map[string]HarnessConfig `toml:"harness"`
+	DefaultProfile string                   `toml:"default_profile"`
+	Harness        map[string]HarnessConfig `toml:"harness"`
+	Profiles       map[string]Profile       `toml:"profile"`
 }
 
 // configDir returns the lore config directory, respecting LORE_CONFIG_DIR.
@@ -64,11 +90,60 @@ func SkillsDirOverride(harnessName string) string {
 	if !ok || hc.SkillsDir == "" {
 		return ""
 	}
-	return expandHome(hc.SkillsDir)
+	return ExpandHome(hc.SkillsDir)
 }
 
-// expandHome replaces a leading ~ with the user's home directory.
-func expandHome(path string) string {
+// ResolveProfile returns the named profile from the lore config.
+// Returns (nil, nil) when name is "" or the profile does not exist.
+// Errors loading the config are propagated to the caller.
+func ResolveProfile(name string) (*Profile, error) {
+	if name == "" {
+		return nil, nil
+	}
+	c, err := Load()
+	if err != nil {
+		return nil, err
+	}
+	p, ok := c.Profiles[name]
+	if !ok {
+		return nil, nil
+	}
+	return &p, nil
+}
+
+// DefaultProfileName returns the default_profile value from the lore config.
+// Returns "" if unset or the config cannot be read.
+func DefaultProfileName() string {
+	c, err := Load()
+	if err != nil {
+		return ""
+	}
+	return c.DefaultProfile
+}
+
+// ActiveProfileName returns the profile name that should be used for a global
+// install when no explicit --profile flag was given. Resolution order:
+//  1. default_profile from config.toml (explicit)
+//  2. the sole profile name when exactly one profile is defined (implicit)
+//  3. "" — no active profile
+func ActiveProfileName() string {
+	c, err := Load()
+	if err != nil {
+		return ""
+	}
+	if c.DefaultProfile != "" {
+		return c.DefaultProfile
+	}
+	if len(c.Profiles) == 1 {
+		for name := range c.Profiles {
+			return name
+		}
+	}
+	return ""
+}
+
+// ExpandHome replaces a leading ~ with the user's home directory.
+func ExpandHome(path string) string {
 	if !strings.HasPrefix(path, "~/") && path != "~" {
 		return path
 	}
