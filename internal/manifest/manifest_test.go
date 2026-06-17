@@ -79,3 +79,9 @@ func TestSaveCreatesParentDir(t *testing.T) {
 	_, err := os.Stat(path)
 	assert.NoError(t, err)
 }
+
+func TestIsGuest(t *testing.T) {
+	assert.True(t, manifest.IsGuest(&manifest.Manifest{Mode: "guest"}))
+	assert.False(t, manifest.IsGuest(&manifest.Manifest{Mode: "keeper"}))
+	assert.False(t, manifest.IsGuest(&manifest.Manifest{}))
+}

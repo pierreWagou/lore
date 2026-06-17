@@ -71,9 +71,8 @@ func TestResolveHTTPSLoreEnvVar(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
 
-	authMethod, err := auth.Resolve("https://github.com/owner/repo")
-	require.NoError(t, err)
-	require.NotNil(t, authMethod)
+	token := auth.ResolveToken("https://github.com/owner/repo")
+	assert.Equal(t, "lore_token", token)
 }
 
 func TestResolveHTTPSGitHubToken(t *testing.T) {
@@ -82,9 +81,8 @@ func TestResolveHTTPSGitHubToken(t *testing.T) {
 	t.Setenv("LORE_GITHUB_COM_TOKEN", "")
 	t.Setenv("GH_TOKEN", "")
 
-	authMethod, err := auth.Resolve("https://github.com/owner/repo")
-	require.NoError(t, err)
-	require.NotNil(t, authMethod)
+	token := auth.ResolveToken("https://github.com/owner/repo")
+	assert.Equal(t, "github_token", token)
 }
 
 func TestResolveHTTPSStoredToken(t *testing.T) {
@@ -96,17 +94,15 @@ func TestResolveHTTPSStoredToken(t *testing.T) {
 
 	require.NoError(t, auth.StoreToken("gitlab.com", "glpat_stored"))
 
-	authMethod, err := auth.Resolve("https://gitlab.com/owner/repo")
-	require.NoError(t, err)
-	require.NotNil(t, authMethod)
+	token := auth.ResolveToken("https://gitlab.com/owner/repo")
+	assert.Equal(t, "glpat_stored", token)
 }
 
 func TestResolveHTTPSNoAuth(t *testing.T) {
 	isolate(t)
-	// No env vars, no stored tokens → public repo returns nil auth without error.
+	// No env vars, no stored tokens → public repo returns "".
 	t.Setenv("LORE_EXAMPLE_COM_TOKEN", "")
 
-	authMethod, err := auth.Resolve("https://example.com/owner/repo")
-	require.NoError(t, err)
-	assert.Nil(t, authMethod)
+	token := auth.ResolveToken("https://example.com/owner/repo")
+	assert.Equal(t, "", token)
 }

@@ -11,16 +11,11 @@ import (
 )
 
 // HarnessConfig holds per-harness overrides set by the user.
+// Used both at the top-level [harness.<name>] and within profiles [profile.<p>.harness.<name>].
+// Supports ~ expansion in SkillsDir.
 type HarnessConfig struct {
 	// SkillsDir overrides the global skills directory for this harness.
-	// Supports ~ expansion. Leave empty to use the harness default.
-	SkillsDir string `toml:"skills_dir"`
-}
-
-// ProfileHarnessConfig holds per-harness overrides within a named profile.
-type ProfileHarnessConfig struct {
-	// SkillsDir overrides the global skills directory for this harness within the profile.
-	// Supports ~ expansion.
+	// Leave empty to use the harness default.
 	SkillsDir string `toml:"skills_dir"`
 }
 
@@ -43,7 +38,7 @@ type Profile struct {
 	// If empty, harness resolution falls back to auto-detect.
 	Harnesses []string `toml:"harnesses,omitempty"`
 	// Harness holds per-harness overrides for this profile.
-	Harness map[string]ProfileHarnessConfig `toml:"harness,omitempty"`
+	Harness map[string]HarnessConfig `toml:"harness,omitempty"`
 	// Dependencies lists the skills installed under this profile.
 	Dependencies []manifest.Dependency `toml:"dependencies,omitempty"`
 }
@@ -145,16 +140,6 @@ func ResolveProfileFromConfig(c *Config, name string) *Profile {
 		return nil
 	}
 	return &p
-}
-
-// DefaultProfileName returns the default_profile value from the config.
-// Returns "" if unset or the config cannot be read.
-func DefaultProfileName() string {
-	c, err := Load()
-	if err != nil {
-		return ""
-	}
-	return c.DefaultProfile
 }
 
 // ActiveProfileName returns the profile name to use for a global install when no

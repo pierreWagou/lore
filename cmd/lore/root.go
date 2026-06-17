@@ -39,8 +39,8 @@ func init() {
 	rootCmd.AddCommand(completionCmd)
 }
 
-// mustGetwd returns the current working directory or exits with an error message.
-func mustGetwd() string {
+// projectRoot returns the current working directory, used as the project root.
+func projectRoot() string {
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot determine working directory: %v\n", err)
@@ -56,7 +56,7 @@ func manifestPath(global bool) string {
 	if global {
 		return filepath.Join(installer.DefaultConfigDir(), manifest.FileName)
 	}
-	return filepath.Join(mustGetwd(), manifest.FileName)
+	return filepath.Join(projectRoot(), manifest.FileName)
 }
 
 // lockfilePath returns the path to lore.lock for project-scoped installs.
@@ -65,17 +65,12 @@ func lockfilePath(global bool) string {
 	if global {
 		return filepath.Join(installer.DefaultConfigDir(), lockfile.FileName)
 	}
-	return filepath.Join(mustGetwd(), lockfile.FileName)
+	return filepath.Join(projectRoot(), lockfile.FileName)
 }
 
 // globalLockfilePath returns the per-profile lockfile path: ~/.config/lore/lore.<profile>.lock.
 func globalLockfilePath(profileName string) string {
 	return filepath.Join(installer.DefaultConfigDir(), lockfile.GlobalFileName(profileName))
-}
-
-// projectRoot returns the project root directory.
-func projectRoot() string {
-	return mustGetwd()
 }
 
 // resolveActiveProfile returns the active profile name for a global command, given an

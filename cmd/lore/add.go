@@ -51,7 +51,7 @@ func init() {
 	addCmd.Flags().StringVarP(&addRef, "ref", "r", "", "git ref: branch, tag, or SHA (default: HEAD)")
 	addCmd.Flags().BoolVar(&addAll, "all", false, "install all skills found without prompting")
 	addCmd.Flags().StringVar(&addSkillsDir, "skills-dir", "", "install into this directory instead of the harness default (global installs only)")
-	addCmd.Flags().StringVar(&addProfile, "profile", "", "use a named profile from ~/.config/lore/config.toml (global installs only)")
+	addCmd.Flags().StringVar(&addProfile, "profile", "", "use a named profile from ~/.config/lore/lore.toml (global installs only)")
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
@@ -131,22 +131,22 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	return installOne(name, source, h.Ref, opts, m, lf, mPath, lPath)
 }
 
-func runAddScan(h resolver.Handle, opts installer.Options, m *manifest.Manifest, lf *lockfile.Lockfile, mPath, lPath string) error {
+// scanCandidates fetches a repo, scans it for skills, and optionally prompts the user
+// to select a subset. Returns the selected candidates.
+func scanCandidates(h resolver.Handle) ([]candidate, error) {
 	fmt.Printf("scanning %s for skills...\n", h.RepoURL)
 
 	token := auth.ResolveToken(h.RepoURL)
-
 	fetchResult, err := resolver.Fetch(h, token, installer.DefaultCacheDir())
 	if err != nil {
-		return fmt.Errorf("fetch: %w", err)
+		return nil, fmt.Errorf("fetch: %w", err)
 	}
 
 	dirs := scanner.Scan(fetchResult.Files)
 	if len(dirs) == 0 {
-		return fmt.Errorf("no skills (SKILL.md files) found in %s", h.RepoURL)
+		return nil, fmt.Errorf("no skills (SKILL.md files) found in %s", h.RepoURL)
 	}
 
-	// Build skill entries for each found directory.
 	var candidates []candidate
 	for _, dir := range dirs {
 		var src string
@@ -155,31 +155,51 @@ func runAddScan(h resolver.Handle, opts installer.Options, m *manifest.Manifest,
 		} else {
 			src = buildSource(h, dir)
 		}
-		candidates = append(candidates, candidate{
-			name:   filepath.Base(dir),
-			source: src,
-		})
+		candidates = append(candidates, candidate{name: filepath.Base(dir), source: src})
 	}
 
-	selected := candidates
-	if !addAll && len(candidates) > 1 {
-		selected, err = promptSelectSkills(candidates)
-		if err != nil {
-			return err
-		}
+	if addAll || len(candidates) == 1 {
+		return candidates, nil
 	}
+	return promptSelectSkills(candidates)
+}
 
+func runAddScan(h resolver.Handle, opts installer.Options, m *manifest.Manifest, lf *lockfile.Lockfile, mPath, lPath string) error {
+	selected, err := scanCandidates(h)
+	if err != nil {
+		return err
+	}
 	if len(selected) == 0 {
 		fmt.Println("no skills selected.")
 		return nil
 	}
-
 	for _, c := range selected {
 		name := addName
 		if name == "" || len(selected) > 1 {
 			name = c.name
 		}
 		if err := installOne(name, c.source, h.Ref, opts, m, lf, mPath, lPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runAddScanGlobal(h resolver.Handle, opts installer.Options, cfg *config.Config, profileName string, lf *lockfile.Lockfile, lPath string) error {
+	selected, err := scanCandidates(h)
+	if err != nil {
+		return err
+	}
+	if len(selected) == 0 {
+		fmt.Println("no skills selected.")
+		return nil
+	}
+	for _, c := range selected {
+		name := addName
+		if name == "" || len(selected) > 1 {
+			name = c.name
+		}
+		if err := installOneGlobal(name, c.source, h.Ref, opts, cfg, profileName, lf, lPath); err != nil {
 			return err
 		}
 	}
@@ -221,57 +241,6 @@ func installOne(name, source, ref string, opts installer.Options, m *manifest.Ma
 	return lockfile.Save(lPath, lf)
 }
 
-func runAddScanGlobal(h resolver.Handle, opts installer.Options, cfg *config.Config, profileName string, lf *lockfile.Lockfile, lPath string) error {
-	fmt.Printf("scanning %s for skills...\n", h.RepoURL)
-
-	token := auth.ResolveToken(h.RepoURL)
-
-	fetchResult, err := resolver.Fetch(h, token, installer.DefaultCacheDir())
-	if err != nil {
-		return fmt.Errorf("fetch: %w", err)
-	}
-
-	dirs := scanner.Scan(fetchResult.Files)
-	if len(dirs) == 0 {
-		return fmt.Errorf("no skills (SKILL.md files) found in %s", h.RepoURL)
-	}
-
-	var candidates []candidate
-	for _, dir := range dirs {
-		var src string
-		if dir == "" {
-			src = h.Raw
-		} else {
-			src = buildSource(h, dir)
-		}
-		candidates = append(candidates, candidate{name: filepath.Base(dir), source: src})
-	}
-
-	selected := candidates
-	if !addAll && len(candidates) > 1 {
-		selected, err = promptSelectSkills(candidates)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(selected) == 0 {
-		fmt.Println("no skills selected.")
-		return nil
-	}
-
-	for _, c := range selected {
-		name := addName
-		if name == "" || len(selected) > 1 {
-			name = c.name
-		}
-		if err := installOneGlobal(name, c.source, h.Ref, opts, cfg, profileName, lf, lPath); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func installOneGlobal(name, source, ref string, opts installer.Options, cfg *config.Config, profileName string, lf *lockfile.Lockfile, lPath string) error {
 	dep := manifest.Dependency{Name: name, Source: source, Ref: ref}
 	if dep.Ref == "" {
@@ -281,7 +250,7 @@ func installOneGlobal(name, source, ref string, opts installer.Options, cfg *con
 	fmt.Printf("installing %s from %s...\n", name, source)
 
 	var sr installer.SkillResult
-	err := withHarnessRetryGlobal(&opts, cfg, func() error {
+	err := withHarnessRetryGlobal(&opts, func() error {
 		var installErr error
 		sr, installErr = installer.Install(dep, opts, nil)
 		return installErr

@@ -12,6 +12,7 @@ import (
 
 	"github.com/pierreWagou/lore/internal/config"
 	"github.com/pierreWagou/lore/internal/harness"
+	"github.com/pierreWagou/lore/internal/lockfile"
 	"github.com/pierreWagou/lore/internal/manifest"
 )
 
@@ -187,7 +188,7 @@ func runInitProject() error {
 	switch mode {
 	case "guest":
 		entries := append(
-			[]string{".ai/skills/", "lore.lock"},
+			[]string{".ai/skills/", lockfile.FileName},
 			harnessIgnoreEntries(root, m.Harnesses)...,
 		)
 		if err := updateGitExclude(root, entries); err != nil {
@@ -253,6 +254,16 @@ func harnessIgnoreEntries(root string, harnessNames []string) []string {
 	return entries
 }
 
+// containsLine reports whether s contains a line equal to line.
+func containsLine(s, line string) bool {
+	for _, l := range strings.Split(s, "\n") {
+		if strings.TrimRight(l, "\r") == line {
+			return true
+		}
+	}
+	return false
+}
+
 // appendEntriesToFile appends new entries to a file (gitignore or git/info/exclude),
 // skipping entries already present. Creates the file if it doesn't exist.
 func appendEntriesToFile(path, header string, entries []string) error {
@@ -263,7 +274,7 @@ func appendEntriesToFile(path, header string, entries []string) error {
 	content := string(existing)
 	var toAdd []string
 	for _, e := range entries {
-		if !strings.Contains(content, e) {
+		if !containsLine(content, e) {
 			toAdd = append(toAdd, e)
 		}
 	}

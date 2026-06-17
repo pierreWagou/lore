@@ -153,3 +153,33 @@ func TestInstallGlobalProfile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, skillContent, data)
 }
+
+func TestRemoveProject(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("LORE_CONFIG_DIR", t.TempDir())
+
+	// Create a local skill source.
+	skillDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# removable"), 0644))
+
+	dep := manifest.Dependency{Name: "to-remove", Source: skillDir, Ref: ""}
+	opts := installer.Options{
+		Global:    false,
+		Root:      root,
+		Harnesses: []string{"opencode"},
+	}
+
+	_, err := installer.Install(dep, opts, nil)
+	require.NoError(t, err)
+
+	// Verify files are present.
+	neutralDir := filepath.Join(installer.NeutralSkillsDir(root), "to-remove")
+	_, err = os.Stat(neutralDir)
+	require.NoError(t, err, "neutral dir should exist after install")
+
+	// Remove and verify cleanup.
+	require.NoError(t, installer.Remove("to-remove", opts, nil))
+
+	_, err = os.Stat(neutralDir)
+	assert.True(t, os.IsNotExist(err), "neutral dir should be gone after remove")
+}

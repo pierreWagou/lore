@@ -59,7 +59,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 		lPath := globalLockfilePath(profileName)
-		return withHarnessRetryGlobal(&opts, cfg, func() error {
+		return withHarnessRetryGlobal(&opts, func() error {
 			return installer.SyncDeps(profile.Dependencies, lPath, opts)
 		})
 	}

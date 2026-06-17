@@ -67,13 +67,11 @@ func runImport(cmd *cobra.Command, args []string) error {
 		}
 
 		for _, entry := range entries {
-			// Only process real directories (not symlinks, not files).
-			info, err := entry.Info()
-			if err != nil || !info.IsDir() {
+			// Skip symlinks (already managed by lore) and non-directories.
+			if entry.Type()&os.ModeSymlink != 0 {
 				continue
 			}
-			// Dereference: skip if it's a symlink (already managed by lore).
-			if info.Mode()&os.ModeSymlink != 0 {
+			if !entry.IsDir() {
 				continue
 			}
 
@@ -84,7 +82,7 @@ func runImport(cmd *cobra.Command, args []string) error {
 			}
 
 			// Skip if already in .ai/skills/ or in lore.toml.
-			neutralDir := filepath.Join(root, ".ai", "skills", name)
+			neutralDir := filepath.Join(installer.NeutralSkillsDir(root), name)
 			if _, err := os.Stat(neutralDir); err == nil {
 				fmt.Printf("  skip %s (already in .ai/skills/)\n", name)
 				continue
@@ -171,7 +169,9 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
+	if _, err = io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }

@@ -15,7 +15,7 @@ func TestScanEmpty(t *testing.T) {
 
 func TestScanRoot(t *testing.T) {
 	files := map[string][]byte{
-		"SKILL.md": []byte("# skill"),
+		"SKILL.md":  []byte("# skill"),
 		"README.md": []byte("readme"),
 	}
 	dirs := scanner.Scan(files)
@@ -42,9 +42,4 @@ func TestScanNoDuplicates(t *testing.T) {
 	}
 	dirs := scanner.Scan(files)
 	assert.Len(t, dirs, 2)
-}
-
-func TestHasSkill(t *testing.T) {
-	assert.True(t, scanner.HasSkill(map[string][]byte{"SKILL.md": []byte("x")}))
-	assert.False(t, scanner.HasSkill(map[string][]byte{"README.md": []byte("x")}))
 }

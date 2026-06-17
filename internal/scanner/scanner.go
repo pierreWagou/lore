@@ -24,9 +24,3 @@ func Scan(files map[string][]byte) []string {
 	}
 	return dirs
 }
-
-// HasSkill reports whether the file map contains a SKILL.md at its root.
-func HasSkill(files map[string][]byte) bool {
-	_, ok := files[SkillFileName]
-	return ok
-}

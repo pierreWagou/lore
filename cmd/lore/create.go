@@ -28,7 +28,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	root := projectRoot()
 
-	skillDir := filepath.Join(root, ".ai", "skills", name)
+	skillDir := filepath.Join(installer.NeutralSkillsDir(root), name)
 	skillFile := filepath.Join(skillDir, "SKILL.md")
 
 	if _, err := os.Stat(skillFile); err == nil {

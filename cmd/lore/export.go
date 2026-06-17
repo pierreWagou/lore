@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/pierreWagou/lore/internal/harness"
+	"github.com/pierreWagou/lore/internal/installer"
 	"github.com/pierreWagou/lore/internal/manifest"
 )
 
@@ -78,7 +79,7 @@ func runExport(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, name := range skillNames {
-		neutralDir := filepath.Join(root, ".ai", "skills", name)
+		neutralDir := filepath.Join(installer.NeutralSkillsDir(root), name)
 		if _, err := os.Stat(neutralDir); os.IsNotExist(err) {
 			return fmt.Errorf("skill %q not found in .ai/skills/", name)
 		}
@@ -123,10 +124,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 // priority chain as install: flag > manifest > auto-detect.
 func resolveExportAdapters(flag string, m *manifest.Manifest) ([]harness.Adapter, error) {
 	if flag != "" {
-		return adaptersByNameList(splitHarnesses(flag))
+		return installer.AdaptersByNames(splitHarnesses(flag))
 	}
 	if m != nil && len(m.Harnesses) > 0 {
-		return adaptersByNameList(m.Harnesses)
+		return installer.AdaptersByNames(m.Harnesses)
 	}
 	detected := harness.Detected()
 	if len(detected) == 0 {
@@ -135,21 +136,9 @@ func resolveExportAdapters(flag string, m *manifest.Manifest) ([]harness.Adapter
 	return detected, nil
 }
 
-func adaptersByNameList(names []string) ([]harness.Adapter, error) {
-	var adapters []harness.Adapter
-	for _, name := range names {
-		a := harness.Get(name)
-		if a == nil {
-			return nil, fmt.Errorf("unknown harness %q (available: %s)", name, availableHarnessNames())
-		}
-		adapters = append(adapters, a)
-	}
-	return adapters, nil
-}
-
 // listNeutralSkills returns all skill names in .ai/skills/.
 func listNeutralSkills(root string) ([]string, error) {
-	neutralBase := filepath.Join(root, ".ai", "skills")
+	neutralBase := installer.NeutralSkillsDir(root)
 	entries, err := os.ReadDir(neutralBase)
 	if os.IsNotExist(err) {
 		return nil, nil

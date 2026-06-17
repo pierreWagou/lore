@@ -66,22 +66,7 @@ func TestSkillsDirOverrideTildeExpansion(t *testing.T) {
 	assert.NotContains(t, result, "~")
 }
 
-func TestDefaultProfileNameAbsent(t *testing.T) {
-	t.Setenv("LORE_CONFIG_DIR", t.TempDir())
-	assert.Equal(t, "", config.DefaultProfileName())
-}
-
-func TestDefaultProfileNamePresent(t *testing.T) {
-	dir := t.TempDir()
-	t.Setenv("LORE_CONFIG_DIR", dir)
-
-	content := "default_profile = \"alan\"\n"
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "lore.toml"), []byte(content), 0644))
-
-	assert.Equal(t, "alan", config.DefaultProfileName())
-}
-
-func TestActiveProfileNameNoConfig(t *testing.T) {
+func TestActiveProfileNameNoDefault(t *testing.T) {
 	t.Setenv("LORE_CONFIG_DIR", t.TempDir())
 	assert.Equal(t, "", config.ActiveProfileName())
 }

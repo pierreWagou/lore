@@ -76,7 +76,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(w, "NAME\tSOURCE\tREF\tCOMMIT")
 	for _, dep := range m.Dependencies {
 		commit := "(not locked)"
-		if entry := lockfile.GetEntry(lf, dep.Name); entry != nil {
+		if entry := lockfile.GetEntry(lf, dep.Name); entry != nil && len(entry.Commit) >= 12 {
 			commit = entry.Commit[:12]
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", dep.Name, dep.Source, dep.Ref, commit)

@@ -28,7 +28,7 @@ type Options struct {
 	Harnesses []string // explicit harness names (overrides manifest + auto-detect)
 	Root      string   // project root directory (for project-scoped installs)
 	SkillsDir string   // one-off override for global skills dir (all harnesses); global installs only
-	Profile   string   // named profile from ~/.config/lore/config.toml; global installs only
+	Profile   string   // named profile from ~/.config/lore/lore.toml; global installs only
 }
 
 // Result describes a single installed skill placement.
@@ -45,8 +45,8 @@ type SkillResult struct {
 	ContentHash string
 }
 
-// neutralSkillsDir returns the .ai/skills directory for the given project root.
-func neutralSkillsDir(root string) string {
+// NeutralSkillsDir returns the .ai/skills directory for the given project root.
+func NeutralSkillsDir(root string) string {
 	return filepath.Join(root, ".ai", "skills")
 }
 
@@ -138,7 +138,7 @@ func placeGlobal(skill harness.Skill, adapters []harness.Adapter, opts Options) 
 // following priority chain (highest to lowest):
 //  1. opts.SkillsDir (--skills-dir flag)
 //  2. profile harness override (--profile flag → profile.<name>.harness.<harness>.skills_dir)
-//  3. adapter.GlobalSkillsDir() — already applies [harness.<name>].skills_dir from config.toml
+//  3. adapter.GlobalSkillsDir() — already applies [harness.<name>].skills_dir from lore.toml
 func resolveSkillsDir(adapter harness.Adapter, opts Options, profile *config.Profile) string {
 	if opts.SkillsDir != "" {
 		return config.ExpandHome(opts.SkillsDir)
@@ -154,7 +154,7 @@ func resolveSkillsDir(adapter harness.Adapter, opts Options, profile *config.Pro
 // placeProject writes a skill to the neutral .ai/skills/<name>/ store, then
 // creates a symlink (or transformed copy) in each harness's project skills directory.
 func placeProject(skill harness.Skill, adapters []harness.Adapter, root string) ([]Result, error) {
-	neutralDir := filepath.Join(neutralSkillsDir(root), skill.Name)
+	neutralDir := filepath.Join(NeutralSkillsDir(root), skill.Name)
 
 	// Write to neutral store (idempotent — safe even if source == neutralDir).
 	if err := writeRawFiles(neutralDir, skill.Files); err != nil {
@@ -255,7 +255,7 @@ func Remove(name string, opts Options, m *manifest.Manifest) error {
 	}
 	// For project-scope installs, also remove from the neutral store.
 	if !opts.Global {
-		neutralDir := filepath.Join(neutralSkillsDir(opts.Root), name)
+		neutralDir := filepath.Join(NeutralSkillsDir(opts.Root), name)
 		if err := os.RemoveAll(neutralDir); err != nil {
 			return err
 		}
@@ -335,10 +335,10 @@ func ComputeContentHash(files map[string][]byte) string {
 
 func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, error) {
 	if len(opts.Harnesses) > 0 {
-		return adaptersByNames(opts.Harnesses)
+		return AdaptersByNames(opts.Harnesses)
 	}
 	if m != nil && len(m.Harnesses) > 0 {
-		return adaptersByNames(m.Harnesses)
+		return AdaptersByNames(m.Harnesses)
 	}
 	// Fall back to profile harnesses when no explicit list is given.
 	// For global installs, also check the default profile when no --profile flag was passed.
@@ -352,7 +352,7 @@ func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, err
 			return nil, fmt.Errorf("loading profile %q: %w", profileName, err)
 		}
 		if profile != nil && len(profile.Harnesses) > 0 {
-			return adaptersByNames(profile.Harnesses)
+			return AdaptersByNames(profile.Harnesses)
 		}
 	}
 	detected := harness.Detected()
@@ -362,7 +362,8 @@ func resolveAdapters(opts Options, m *manifest.Manifest) ([]harness.Adapter, err
 	return detected, nil
 }
 
-func adaptersByNames(names []string) ([]harness.Adapter, error) {
+// AdaptersByNames resolves harness adapters by name, returning an error for unknown names.
+func AdaptersByNames(names []string) ([]harness.Adapter, error) {
 	var adapters []harness.Adapter
 	for _, name := range names {
 		a := harness.Get(name)
